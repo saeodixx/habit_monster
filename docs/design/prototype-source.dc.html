@@ -1,0 +1,2149 @@
+<!--
+  습관 몬스터 디자인 프로토타입 — 소스 (사람/AI가 읽기 쉬운 버전)
+  - 화면 마크업: <x-dc> 안 ({{ 값 }}은 아래 renderVals()에서 계산)
+  - 동작/상태: 맨 아래 <script data-dc-script> 의 class Component (state, 메서드, renderVals)
+  - 이미지 경로는 frontend/ 기준. 박사 스프라이트는 여기선 104×190 프레임 36개를 가로로 이은 strip을 썼고,
+    Flutter 쪽은 원본 6×6 시트(characters/professor_sheet.png, 프레임 208×380)를 써요.
+  - 직접 열어서 보려면 같은 폴더의 habit-monster-prototype.html 을 브라우저로 여세요.
+-->
+
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>습관 몬스터</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+@font-face{font-family:'Galmuri11';src:url('assets/fonts/Galmuri11.ttf') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Galmuri11';src:url('assets/fonts/Galmuri11-Bold.ttf') format('woff2');font-weight:700;font-display:swap}
+body{margin:0}
+</style>
+</helmet>
+<div style="width:390px;height:844px;position:relative;overflow:hidden;background:#12101f;color:#e8e4f5;font-family:'Galmuri11',ui-monospace,monospace;display:flex;flex-direction:column;box-sizing:border-box;-webkit-font-smoothing:none;">
+
+<!-- ============ 인트로 ============ -->
+<sc-if value="{{ isIntro }}" hint-placeholder-val="{{ true }}">
+<div style="flex:1;display:flex;flex-direction:column;min-height:0;">
+  <div style="flex:1;position:relative;background:#1b1438;overflow:hidden;">
+    <div style="position:absolute;inset:0;background-image:radial-gradient(#ffffff22 1px,transparent 1px);background-size:14px 14px;"></div>
+    <div style="position:absolute;left:0;right:0;bottom:0;height:24%;background-color:#241a3d;background-image:repeating-conic-gradient(#2a1f48 0 25%,#241a3d 0 50%);background-size:24px 24px;border-top:3px solid #3a3358;"></div>
+    <div style="position:absolute;left:0;right:0;bottom:18px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 14px;">
+      <sc-for list="{{ introMons }}" as="m" hint-placeholder-count="4">
+        <img src="{{ m.img }}" alt="" style="height:46px;width:auto;image-rendering:pixelated;filter:brightness(0);opacity:.55;">
+      </sc-for>
+    </div>
+    <div style="position:absolute;left:50%;bottom:22px;margin-left:-78px;width:156px;height:285px;overflow:hidden;">
+      <img src="assets/images/characters/professor_strip_104x190.png" alt="대림대 박사" style="display:block;height:285px;width:5616px;max-width:none;image-rendering:pixelated;transform:translateX({{ profX }});">
+    </div>
+    <div style="position:absolute;left:50%;bottom:16px;margin-left:-48px;width:96px;height:10px;background:#0d0b16;opacity:.25;"></div>
+  </div>
+  <div style="padding:14px 14px 18px;background:#0f0d1c;border-top:3px solid #2b2545;">
+    <div style="position:relative;background:#fffaf0;border:4px solid #0d0b16;box-shadow:5px 5px 0 #0d0b16;padding:20px 14px 14px;min-height:118px;box-sizing:border-box;font-size:13.5px;line-height:1.95;color:#2b1a1a;">
+      <span style="position:absolute;left:12px;top:-14px;background:#d94a3d;border:3px solid #0d0b16;padding:2px 12px;font-size:11.5px;font-weight:700;color:#ffffff;text-shadow:1px 1px 0 #7a1f17;">대림대 박사</span>
+      {{ typed }}
+      <span style="position:absolute;right:12px;bottom:6px;font-size:12px;color:#d94a3d;opacity:{{ cursorOp }};">▼</span>
+    </div>
+    <div style="display:flex;gap:9px;margin-top:14px;">
+      <button onClick="{{ skipIntro }}" style="flex:0 0 auto;min-height:48px;padding:11px 14px;background:#f4ead2;color:#2b1a1a;border:3px solid #0d0b16;box-shadow:0 5px 0 #8a7a6a;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;">건너뛰기</button>
+      <button onClick="{{ nextLine }}" style="flex:1;min-height:48px;padding:11px;background:#f0b23c;color:#12101f;border:3px solid #0d0b16;box-shadow:0 5px 0 #8a5a1a;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">{{ nextLabel }}</button>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<!-- ============ 온보딩 1: 카테고리 ============ -->
+<sc-if value="{{ isCats }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;min-height:0;display:flex;flex-direction:column;position:relative;background:#1b1438;">
+  <div style="position:absolute;inset:0;background-image:radial-gradient(#ffffff1f 1px,transparent 1px);background-size:14px 14px;pointer-events:none;"></div>
+  <div style="flex:1;min-height:0;overflow:auto;padding:16px 14px 14px;display:flex;flex-direction:column;gap:12px;position:relative;">
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span style="width:22px;height:8px;background:#f0b23c;border:2px solid #0d0b16;"></span>
+      <span style="width:22px;height:8px;background:#3a3358;border:2px solid #0d0b16;"></span>
+      <span style="width:22px;height:8px;background:#3a3358;border:2px solid #0d0b16;"></span>
+      <span style="font-size:10px;color:#c9b6ff;margin-left:4px;">STEP 1 / 3 · 모험의 길 고르기</span>
+    </div>
+    <div style="display:flex;align-items:flex-end;gap:8px;">
+      <div style="width:60px;height:64px;flex:0 0 auto;overflow:hidden;background:#2f2456;border:3px solid #0d0b16;box-sizing:border-box;">
+        <img src="assets/images/characters/professor_strip_104x190.png" alt="대림대 박사" style="display:block;height:190px;width:3744px;max-width:none;image-rendering:pixelated;transform:translate(-24px,-2px);">
+      </div>
+      <div style="position:relative;flex:1;background:#fffaf0;border:3px solid #0d0b16;padding:8px 10px;font-size:11.5px;line-height:1.75;color:#2b1a1a;">
+        <span style="display:block;font-size:9.5px;font-weight:700;color:#d94a3d;">대림대 박사</span>
+        세 갈래의 길을 골라보게! 고른 길의 몬스터만 탐색에서 만날 수 있다네.
+        <span style="position:absolute;left:-9px;bottom:10px;width:6px;height:10px;background:#fffaf0;border:3px solid #0d0b16;border-right:none;"></span>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:4px;">
+      <sc-for list="{{ catCards }}" as="c" hint-placeholder-count="6">
+        <button onClick="{{ c.toggle }}" style="position:relative;text-align:left;padding:10px;background:{{ c.bg }};border:3px solid #0d0b16;box-shadow:{{ c.shadow }};transform:translateY({{ c.lift }});font-family:inherit;color:#2b1a1a;cursor:pointer;display:flex;flex-direction:column;gap:6px;">
+          <span style="display:flex;align-items:center;gap:8px;">
+            <span style="width:40px;height:40px;flex:0 0 auto;background:{{ c.color }};border:3px solid #0d0b16;display:flex;align-items:center;justify-content:center;box-sizing:border-box;"><svg width="26" height="26" viewBox="0 0 16 16" style="shape-rendering:crispEdges;filter:drop-shadow(1.5px 0 0 #0d0b16) drop-shadow(-1.5px 0 0 #0d0b16) drop-shadow(0 1.5px 0 #0d0b16) drop-shadow(0 -1.5px 0 #0d0b16);"><path d="{{ c.ic.a }}" fill="{{ c.ic.ca }}"></path><path d="{{ c.ic.b }}" fill="{{ c.ic.cb }}"></path><path d="{{ c.ic.c }}" fill="{{ c.ic.cc }}"></path></svg></span>
+            <span style="display:flex;flex-direction:column;gap:3px;"><span style="font-size:13px;font-weight:700;">{{ c.name }}</span><span style="font-size:9.5px;color:#7a6a60;">{{ c.type }} 타입</span></span>
+          </span>
+          <span style="font-size:9.5px;color:#7a6a60;line-height:1.6;">{{ c.meas }}</span>
+          <sc-if value="{{ c.sel }}" hint-placeholder-val="{{ false }}">
+            <span style="position:absolute;right:-7px;top:-7px;width:24px;height:24px;background:#7fd36b;border:3px solid #0d0b16;display:flex;align-items:center;justify-content:center;box-sizing:border-box;"><svg width="12" height="12" viewBox="0 0 16 16"><path d="M2 8l4 4 8-8" stroke="#2b1a1a" stroke-width="3.5" fill="none"></path></svg></span>
+          </sc-if>
+        </button>
+      </sc-for>
+    </div>
+    <div style="position:relative;background:#2f2456;border:4px solid #0d0b16;box-shadow:5px 5px 0 #0d0b16;padding:12px 10px 12px;display:flex;flex-direction:column;gap:10px;margin-top:6px;">
+      <div style="display:flex;align-items:center;gap:9px;">
+        <span style="width:34px;height:34px;flex:0 0 auto;background:#ffe58a;border:3px solid #0d0b16;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#2b1a1a;transform:translateY({{ bobY }});transition:transform .3s steps(2);box-sizing:border-box;">?</span>
+        <span style="display:flex;flex-direction:column;gap:3px;">
+          <span style="font-size:13px;font-weight:700;color:#ffffff;">첫 파트너는 누구?</span>
+          <span style="font-size:9.5px;color:#c9b6ff;line-height:1.6;">고른 길마다 한 마리씩 기다리고 있어요. 두근두근, 하나를 골라보세요!</span>
+        </span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
+        <sc-for list="{{ starterSlots }}" as="s" hint-placeholder-count="3">
+          <button onClick="{{ s.pick }}" aria-label="{{ s.aria }}" style="position:relative;min-height:118px;padding:8px 4px 6px;background:{{ s.bg }};border:3px solid #0d0b16;box-shadow:{{ s.shadow }};transform:translateY({{ s.lift }});font-family:inherit;cursor:{{ s.cursor }};display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px;overflow:visible;">
+            <span style="position:absolute;left:50%;bottom:30px;margin-left:-28px;width:56px;height:10px;background:#0d0b16;opacity:.35;"></span>
+            <sc-if value="{{ s.hasImg }}" hint-placeholder-val="{{ false }}">
+              <img src="{{ s.img }}" alt="" style="position:relative;max-height:62px;max-width:80px;image-rendering:pixelated;filter:brightness(0);opacity:.85;transform:translateY({{ s.bob }});transition:transform .3s steps(2);">
+            </sc-if>
+            <sc-if value="{{ s.isBall }}" hint-placeholder-val="{{ true }}">
+              <svg width="40" height="40" viewBox="0 0 16 16" style="position:relative;shape-rendering:crispEdges;filter:drop-shadow(1.5px 0 0 #0d0b16) drop-shadow(-1.5px 0 0 #0d0b16) drop-shadow(0 1.5px 0 #0d0b16) drop-shadow(0 -1.5px 0 #0d0b16);transform:translateY({{ s.bob }});"><path d="M5 1h6v1h2v2h1v8h-1v2h-2v1H5v-1H3v-2H2V4h1V2h2z" fill="#fffaf0"></path><path d="M5 1h6v1h2v2h1v3H2V4h1V2h2z" fill="{{ s.ballTop }}"></path><path d="M2 7h12v2H2z M6 6h4v4H6z" fill="#2b1a1a"></path><path d="M7 7h2v2H7z" fill="#ffd479"></path></svg>
+            </sc-if>
+            <span style="position:relative;font-size:10.5px;font-weight:700;color:{{ s.nameColor }};">{{ s.name }}</span>
+            <span style="position:relative;font-size:9px;font-weight:700;color:#2b1a1a;background:{{ s.typeBg }};border:2px solid #0d0b16;padding:1px 5px;">{{ s.type }}</span>
+            <sc-if value="{{ s.chosen }}" hint-placeholder-val="{{ false }}">
+              <span style="position:absolute;left:50%;top:-12px;transform:translateX(-50%);background:#d94a3d;border:3px solid #0d0b16;color:#ffffff;font-size:9.5px;font-weight:700;padding:1px 6px;white-space:nowrap;">이 친구로!</span>
+            </sc-if>
+          </button>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+  <div style="flex:0 0 auto;padding:10px 14px 14px;background:#0f0d1c;border-top:3px solid #2b2545;position:relative;display:flex;align-items:center;gap:12px;">
+    <span style="font-size:12px;font-weight:700;color:#ffe58a;background:#2b1a1a;border:3px solid #0d0b16;padding:8px 10px;">{{ pickCount }}/3</span>
+    <button onClick="{{ confirmCats }}" disabled="{{ pickNone }}" style="flex:1;min-height:50px;padding:12px;background:{{ catNextBg }};color:#12101f;border:3px solid #0d0b16;box-shadow:0 5px 0 {{ catNextShadow }};font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">이 길로 간다 ▶</button>
+  </div>
+</div>
+</sc-if>
+
+<!-- ============ 온보딩 2: 습관 등록 ============ -->
+<sc-if value="{{ isHabit }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;min-height:0;display:flex;flex-direction:column;position:relative;background:#1b1438;">
+  <div style="position:absolute;inset:0;background-image:radial-gradient(#ffffff1f 1px,transparent 1px);background-size:14px 14px;pointer-events:none;"></div>
+  <div style="flex:1;min-height:0;overflow:auto;padding:16px 14px 14px;display:flex;flex-direction:column;gap:12px;position:relative;">
+
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span style="width:22px;height:8px;background:#f0b23c;border:2px solid #0d0b16;"></span>
+      <span style="width:22px;height:8px;background:#f0b23c;border:2px solid #0d0b16;"></span>
+      <span style="width:22px;height:8px;background:#3a3358;border:2px solid #0d0b16;"></span>
+      <span style="font-size:10px;color:#c9b6ff;margin-left:4px;">STEP 2 / 3 · 습관 퀘스트 만들기</span>
+    </div>
+
+    <div style="display:flex;align-items:flex-end;gap:8px;">
+      <div style="width:60px;height:64px;flex:0 0 auto;overflow:hidden;background:#2f2456;border:3px solid #0d0b16;box-sizing:border-box;">
+        <img src="assets/images/characters/professor_strip_104x190.png" alt="대림대 박사" style="display:block;height:190px;width:3744px;max-width:none;image-rendering:pixelated;transform:translate(-24px,-2px);">
+      </div>
+      <div style="position:relative;flex:1;background:#fffaf0;border:3px solid #0d0b16;padding:8px 10px;font-size:11.5px;line-height:1.75;color:#2b1a1a;">
+        <span style="display:block;font-size:9.5px;font-weight:700;color:#d94a3d;">대림대 박사</span>
+        어떤 습관을 키워보겠나? 추천을 누르면 바로 채워진다네!
+        <span style="position:absolute;left:-9px;bottom:10px;width:6px;height:10px;background:#fffaf0;border:3px solid #0d0b16;border-right:none;"></span>
+      </div>
+    </div>
+
+    <div style="position:relative;background:#fffaf0;border:4px solid #0d0b16;box-shadow:5px 5px 0 #0d0b16;padding:22px 12px 14px;display:flex;flex-direction:column;gap:14px;margin-top:8px;">
+      <div style="position:absolute;left:50%;top:-14px;transform:translateX(-50%);background:#d94a3d;border:3px solid #0d0b16;padding:3px 16px;font-size:12px;font-weight:700;color:#ffffff;text-shadow:1px 1px 0 #7a1f17;white-space:nowrap;">새 습관 퀘스트</div>
+
+      <div style="display:flex;flex-direction:column;gap:7px;">
+        <span style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#2b1a1a;"><span style="background:#2b1a1a;color:#ffe58a;padding:1px 6px;">1</span>어느 길의 습관?</span>
+        <div style="display:flex;gap:8px;">
+          <sc-for list="{{ draftCats }}" as="c" hint-placeholder-count="3">
+            <button onClick="{{ c.pick }}" aria-label="{{ c.name }}" style="flex:1;min-height:66px;padding:6px 2px;background:{{ c.bg }};border:3px solid #0d0b16;box-shadow:{{ c.shadow }};transform:translateY({{ c.lift }});font-family:inherit;color:#2b1a1a;font-size:10.5px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">
+              <svg width="28" height="28" viewBox="0 0 16 16" style="shape-rendering:crispEdges;filter:drop-shadow(1.5px 0 0 #0d0b16) drop-shadow(-1.5px 0 0 #0d0b16) drop-shadow(0 1.5px 0 #0d0b16) drop-shadow(0 -1.5px 0 #0d0b16);"><path d="{{ c.ic.a }}" fill="{{ c.ic.ca }}"></path><path d="{{ c.ic.b }}" fill="{{ c.ic.cb }}"></path><path d="{{ c.ic.c }}" fill="{{ c.ic.cc }}"></path></svg>
+              {{ c.short }}
+            </button>
+          </sc-for>
+        </div>
+      </div>
+
+      <sc-if value="{{ draftHasCat }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column;gap:7px;">
+        <span style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#2b1a1a;"><span style="background:#2b1a1a;color:#ffe58a;padding:1px 6px;">2</span>어떤 습관? <span style="font-weight:400;color:#7a6a60;font-size:10px;">추천을 누르거나 직접 적기</span></span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <sc-for list="{{ presets }}" as="p" hint-placeholder-count="3">
+            <button onClick="{{ p.pick }}" style="min-height:36px;padding:6px 10px;background:{{ p.bg }};border:3px solid #0d0b16;box-shadow:0 3px 0 {{ p.shadow }};font-family:inherit;font-size:11px;font-weight:700;color:#2b1a1a;cursor:pointer;">{{ p.label }}</button>
+          </sc-for>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;background:#f4ead2;border:3px solid #0d0b16;padding:4px 10px;">
+          <svg width="16" height="16" viewBox="0 0 16 16" style="flex:0 0 auto;shape-rendering:crispEdges;"><path d="M11 1h2v1h1v2h-1v1h-1v1h-1v1h-1v1H9v1H8v1H7v1H6v1H3v-3h1v-1h1V9h1V8h1V7h1V6h1V5h1V4h1V3h1V2h-1z" fill="#d94a3d"></path><path d="M3 12h3v3H2v-2h1z" fill="#2b1a1a"></path></svg>
+          <span style="position:absolute;left:-9999px;">습관 이름</span>
+          <input value="{{ draftName }}" onChange="{{ setDraftName }}" placeholder="직접 적어도 돼요" style="flex:1;min-width:0;padding:8px 0;background:transparent;border:none;color:#2b1a1a;font-family:inherit;font-size:13px;font-weight:700;outline:none;">
+        </label>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:7px;">
+        <span style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#2b1a1a;"><span style="background:#2b1a1a;color:#ffe58a;padding:1px 6px;">3</span>무엇으로 셀까?</span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <sc-for list="{{ draftMeasures }}" as="m" hint-placeholder-count="3">
+            <button onClick="{{ m.pick }}" style="min-height:36px;padding:6px 10px;background:{{ m.bg }};border:3px solid #0d0b16;box-shadow:0 3px 0 {{ m.shadow }};font-family:inherit;font-size:11px;font-weight:700;color:#2b1a1a;cursor:pointer;">{{ m.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:7px;">
+        <span style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#2b1a1a;"><span style="background:#2b1a1a;color:#ffe58a;padding:1px 6px;">4</span>하루 목표</span>
+        <sc-if value="{{ draftNeedsTarget }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button onClick="{{ decTarget }}" aria-label="목표 줄이기" style="width:48px;height:48px;flex:0 0 auto;background:#cfe8ff;border:3px solid #0d0b16;box-shadow:0 4px 0 #7aa6c9;font-family:inherit;font-size:22px;font-weight:700;color:#2b1a1a;cursor:pointer;">−</button>
+            <div style="flex:1;height:48px;background:#2b1a1a;border:3px solid #0d0b16;display:flex;align-items:center;justify-content:center;gap:6px;box-sizing:border-box;">
+              <span style="font-size:24px;font-weight:700;color:#ffe58a;">{{ draftTargetText }}</span>
+              <span style="font-size:12px;color:#f4ead2;">{{ draftUnit }}</span>
+            </div>
+            <button onClick="{{ incTarget }}" aria-label="목표 늘리기" style="width:48px;height:48px;flex:0 0 auto;background:#ffd24d;border:3px solid #0d0b16;box-shadow:0 4px 0 #b27a14;font-family:inherit;font-size:22px;font-weight:700;color:#2b1a1a;cursor:pointer;">+</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{ draftIsOX }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:8px;background:#f4ead2;border:3px solid #0d0b16;padding:10px;font-size:11.5px;color:#2b1a1a;">
+            <span style="background:#7fd36b;border:2px solid #0d0b16;padding:1px 7px;font-weight:700;">O</span>했으면 O, 못 했으면 X — 챗봇이 물어볼게요
+          </div>
+        </sc-if>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:7px;">
+        <span style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#2b1a1a;"><span style="background:#2b1a1a;color:#ffe58a;padding:1px 6px;">5</span>기간 · 끝까지 지키면 보상 상자!</span>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
+          <sc-for list="{{ draftPeriods }}" as="p" hint-placeholder-count="3">
+            <button onClick="{{ p.pick }}" style="min-height:84px;padding:6px 2px;background:{{ p.bg }};border:3px solid #0d0b16;box-shadow:{{ p.shadow }};transform:translateY({{ p.lift }});font-family:inherit;color:#2b1a1a;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;">
+              <svg width="{{ p.size }}" height="{{ p.size }}" viewBox="0 0 16 16" style="shape-rendering:crispEdges;filter:drop-shadow(1.5px 0 0 #0d0b16) drop-shadow(-1.5px 0 0 #0d0b16) drop-shadow(0 1.5px 0 #0d0b16) drop-shadow(0 -1.5px 0 #0d0b16);"><path d="M3 3h10v1h1v3H2V4h1z" fill="{{ p.lid }}"></path><path d="M2 7h12v7H2z" fill="{{ p.body }}"></path><path d="M2 7h12v1H2z M7 4h2v6H7z M2 12h12v1H2z" fill="{{ p.band }}"></path><path d="M7 8h2v2H7z" fill="#2b1a1a"></path><path d="M4 4h3v1H4z" fill="#ffffff88"></path></svg>
+              <span style="font-size:11px;font-weight:700;">{{ p.label }}</span>
+              <span style="font-size:12px;font-weight:700;color:#b85a00;">{{ p.mult }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+      <button onClick="{{ addHabit }}" disabled="{{ cantAdd }}" style="min-height:50px;padding:10px;background:{{ addBg }};border:3px solid #0d0b16;box-shadow:0 5px 0 {{ addShadow }};color:{{ addColor }};font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">퀘스트 등록!</button>
+    </div>
+
+    <sc-if value="{{ hasHabits }}" hint-placeholder-val="{{ false }}">
+      <div style="font-size:11px;color:#c9b6ff;font-weight:700;">등록한 퀘스트 · {{ habitCountText }}</div>
+    </sc-if>
+    <sc-for list="{{ habitRows }}" as="h" hint-placeholder-count="0">
+      <div style="display:flex;align-items:center;gap:10px;background:#f4ead2;border:3px solid #0d0b16;box-shadow:0 4px 0 #0d0b16;padding:8px 6px 8px 10px;">
+        <svg width="26" height="26" viewBox="0 0 16 16" style="flex:0 0 auto;shape-rendering:crispEdges;filter:drop-shadow(1.5px 0 0 #0d0b16) drop-shadow(-1.5px 0 0 #0d0b16) drop-shadow(0 1.5px 0 #0d0b16) drop-shadow(0 -1.5px 0 #0d0b16);"><path d="{{ h.ic.a }}" fill="{{ h.ic.ca }}"></path><path d="{{ h.ic.b }}" fill="{{ h.ic.cb }}"></path><path d="{{ h.ic.c }}" fill="{{ h.ic.cc }}"></path></svg>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12.5px;font-weight:700;color:#2b1a1a;">{{ h.name }}</div>
+          <div style="font-size:9.5px;color:#7a6a60;margin-top:3px;">{{ h.meta }}</div>
+        </div>
+        <button onClick="{{ h.remove }}" aria-label="퀘스트 삭제" style="width:38px;height:38px;flex:0 0 auto;background:#e2574c;border:3px solid #0d0b16;color:#ffffff;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+          <svg width="12" height="12" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="3.5" fill="none"></path></svg>
+        </button>
+      </div>
+    </sc-for>
+    <div style="font-size:9.5px;color:#9b91c4;line-height:1.8;">하루 성실도에는 퀘스트 최대 3개까지 반영돼요.</div>
+  </div>
+  <div style="flex:0 0 auto;padding:10px 14px 14px;background:#0f0d1c;border-top:3px solid #2b2545;position:relative;">
+    <button onClick="{{ finishHabits }}" disabled="{{ noHabits }}" style="width:100%;min-height:50px;padding:12px;background:{{ habitNextBg }};color:#12101f;border:3px solid #0d0b16;box-shadow:0 5px 0 {{ habitNextShadow }};font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">{{ finishLabel }}</button>
+  </div>
+</div>
+</sc-if>
+
+<!-- ============ 온보딩 3: 목표 안내 ============ -->
+<sc-if value="{{ isGoalIntro }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;min-height:0;display:flex;flex-direction:column;position:relative;background:#1b1438;">
+  <div style="position:absolute;inset:0;background-image:radial-gradient(#ffffff1f 1px,transparent 1px);background-size:14px 14px;pointer-events:none;"></div>
+  <div style="flex:1;min-height:0;overflow:auto;padding:16px 14px 14px;display:flex;flex-direction:column;gap:12px;position:relative;">
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span style="width:22px;height:8px;background:#f0b23c;border:2px solid #0d0b16;"></span>
+      <span style="width:22px;height:8px;background:#f0b23c;border:2px solid #0d0b16;"></span>
+      <span style="width:22px;height:8px;background:#f0b23c;border:2px solid #0d0b16;"></span>
+      <span style="font-size:10px;color:#c9b6ff;margin-left:4px;">STEP 3 / 3 · 목표 세우기</span>
+    </div>
+    <div style="display:flex;align-items:flex-end;gap:8px;">
+      <div style="width:60px;height:64px;flex:0 0 auto;overflow:hidden;background:#2f2456;border:3px solid #0d0b16;box-sizing:border-box;">
+        <img src="assets/images/characters/professor_strip_104x190.png" alt="대림대 박사" style="display:block;height:190px;width:3744px;max-width:none;image-rendering:pixelated;transform:translate(-24px,-2px);">
+      </div>
+      <div style="position:relative;flex:1;background:#fffaf0;border:3px solid #0d0b16;padding:8px 10px;font-size:11.5px;line-height:1.75;color:#2b1a1a;">
+        <span style="display:block;font-size:9.5px;font-weight:700;color:#d94a3d;">대림대 박사</span>
+        목표를 세워두면 몬스터를 강하게 키우는 가장 빠른 길이 된다네!
+        <span style="position:absolute;left:-9px;bottom:10px;width:6px;height:10px;background:#fffaf0;border:3px solid #0d0b16;border-right:none;"></span>
+      </div>
+    </div>
+    <div style="position:relative;background:#fffaf0;border:4px solid #0d0b16;box-shadow:5px 5px 0 #0d0b16;padding:22px 12px 14px;display:flex;flex-direction:column;gap:12px;margin-top:8px;">
+      <div style="position:absolute;left:50%;top:-14px;transform:translateX(-50%);background:#d94a3d;border:3px solid #0d0b16;padding:3px 16px;font-size:12px;font-weight:700;color:#ffffff;text-shadow:1px 1px 0 #7a1f17;white-space:nowrap;">목표 보상표</div>
+      <div style="display:flex;align-items:center;gap:12px;background:#cfe8ff;border:3px solid #0d0b16;box-shadow:0 4px 0 #7aa6c9;padding:10px;">
+        <span style="display:flex;gap:2px;flex:0 0 auto;">
+          <svg width="22" height="22" viewBox="0 0 16 16" style="shape-rendering:crispEdges;filter:drop-shadow(1px 0 0 #0d0b16) drop-shadow(-1px 0 0 #0d0b16) drop-shadow(0 1px 0 #0d0b16) drop-shadow(0 -1px 0 #0d0b16);"><path d="M3 3h10v1h1v3H2V4h1z" fill="#a8673a"></path><path d="M2 7h12v7H2z" fill="#c98a4b"></path><path d="M2 7h12v1H2z M7 4h2v6H7z" fill="#ffd24d"></path></svg>
+          <svg width="22" height="22" viewBox="0 0 16 16" style="shape-rendering:crispEdges;filter:drop-shadow(1px 0 0 #0d0b16) drop-shadow(-1px 0 0 #0d0b16) drop-shadow(0 1px 0 #0d0b16) drop-shadow(0 -1px 0 #0d0b16);"><path d="M3 3h10v1h1v3H2V4h1z" fill="#a8673a"></path><path d="M2 7h12v7H2z" fill="#c98a4b"></path><path d="M2 7h12v1H2z M7 4h2v6H7z" fill="#ffd24d"></path></svg>
+          <svg width="22" height="22" viewBox="0 0 16 16" style="shape-rendering:crispEdges;filter:drop-shadow(1px 0 0 #0d0b16) drop-shadow(-1px 0 0 #0d0b16) drop-shadow(0 1px 0 #0d0b16) drop-shadow(0 -1px 0 #0d0b16);"><path d="M3 3h10v1h1v3H2V4h1z" fill="#a8673a"></path><path d="M2 7h12v7H2z" fill="#c98a4b"></path><path d="M2 7h12v1H2z M7 4h2v6H7z" fill="#ffd24d"></path></svg>
+        </span>
+        <span style="flex:1;display:flex;flex-direction:column;gap:3px;color:#2b1a1a;">
+          <span style="font-size:13px;font-weight:700;">주간 목표 <span style="font-size:10px;font-weight:400;color:#3f5f7a;">최대 3개</span></span>
+          <span style="font-size:10px;color:#3f5f7a;">달성할 때마다 보상 · 슬롯 추가는 유료</span>
+        </span>
+        <span style="font-size:14px;font-weight:700;color:#b85a00;">+40G</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;background:#ffe58a;border:3px solid #0d0b16;box-shadow:0 4px 0 #b27a14;padding:10px;">
+        <svg width="40" height="40" viewBox="0 0 16 16" style="flex:0 0 auto;shape-rendering:crispEdges;filter:drop-shadow(1.5px 0 0 #0d0b16) drop-shadow(-1.5px 0 0 #0d0b16) drop-shadow(0 1.5px 0 #0d0b16) drop-shadow(0 -1.5px 0 #0d0b16);"><path d="M3 3h10v1h1v3H2V4h1z" fill="#e2574c"></path><path d="M2 7h12v7H2z" fill="#ff8a6a"></path><path d="M2 7h12v1H2z M7 4h2v6H7z M2 12h12v1H2z" fill="#ffd24d"></path><path d="M7 8h2v2H7z" fill="#2b1a1a"></path></svg>
+        <span style="flex:1;display:flex;flex-direction:column;gap:3px;color:#2b1a1a;">
+          <span style="font-size:13px;font-weight:700;">월간 목표 <span style="font-size:10px;font-weight:400;color:#7a5a1a;">1개</span></span>
+          <span style="font-size:10px;color:#7a5a1a;">한 달에 한 번, 큰 보물상자!</span>
+        </span>
+        <span style="font-size:14px;font-weight:700;color:#b85a00;">+150G</span>
+      </div>
+    </div>
+    <div style="position:relative;background:#fffaf0;border:4px solid #0d0b16;box-shadow:5px 5px 0 #0d0b16;padding:22px 12px 14px;display:flex;flex-direction:column;gap:14px;margin-top:12px;">
+      <div style="position:absolute;left:50%;top:-14px;transform:translateX(-50%);background:#6d5ec4;border:3px solid #0d0b16;padding:3px 16px;font-size:12px;font-weight:700;color:#ffffff;white-space:nowrap;">내 목표 적기</div>
+      <sc-for list="{{ onbGoalSecs }}" as="g" hint-placeholder-count="2">
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          <span style="display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#2b1a1a;">
+            <span style="background:#2b1a1a;color:#ffe58a;padding:1px 6px;">{{ g.name }}</span>
+            <span style="font-weight:400;color:#7a6a60;font-size:10px;">{{ g.countText }}</span>
+          </span>
+          <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="0">
+            <div style="display:flex;align-items:center;gap:8px;background:#f4ead2;border:3px solid #0d0b16;padding:6px 6px 6px 10px;">
+              <span style="flex:1;min-width:0;font-size:12px;font-weight:700;color:#2b1a1a;">{{ it.t }}</span>
+              <button onClick="{{ it.remove }}" aria-label="목표 지우기" style="width:32px;height:32px;flex:0 0 auto;background:#e2574c;border:3px solid #0d0b16;color:#ffffff;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="3.5" fill="none"></path></svg></button>
+            </div>
+          </sc-for>
+          <sc-if value="{{ g.canAdd }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;gap:6px;">
+              <input value="{{ g.input }}" onChange="{{ g.setInput }}" aria-label="{{ g.name }} 입력" placeholder="{{ g.placeholder }}" style="flex:1;min-width:0;padding:9px 10px;background:#f4ead2;border:3px solid #0d0b16;color:#2b1a1a;font-family:inherit;font-size:12px;font-weight:700;outline:none;">
+              <button onClick="{{ g.add }}" style="flex:0 0 auto;min-height:44px;padding:6px 12px;background:#ffd24d;border:3px solid #0d0b16;box-shadow:0 3px 0 #b27a14;font-family:inherit;font-size:12px;font-weight:700;color:#2b1a1a;cursor:pointer;">추가</button>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+      <span style="font-size:9.5px;color:#7a6a60;">상세 내용은 나중에 목표 탭에서 언제든 고칠 수 있어요.</span>
+    </div>
+    <button onClick="{{ toggleShopPrev }}" style="align-self:center;background:none;border:none;color:#ffe58a;font-family:inherit;font-size:11.5px;font-weight:700;text-decoration:underline;text-underline-offset:4px;cursor:pointer;min-height:36px;padding:4px 8px;">{{ shopPrevLabel }}</button>
+    <sc-if value="{{ showShopPrev }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#fffaf0;border:3px solid #0d0b16;display:flex;flex-direction:column;">
+        <sc-for list="{{ shopPreview }}" as="i" hint-placeholder-count="4">
+          <div style="display:flex;align-items:center;gap:9px;padding:8px 10px;border-bottom:2px solid #eadfc6;">
+            <sc-if value="{{ i.isPotion }}" hint-placeholder-val="{{ true }}">
+              <img src="{{ i.img }}" alt="" style="flex:0 0 auto;height:22px;width:auto;image-rendering:pixelated;">
+            </sc-if>
+            <sc-if value="{{ i.isBall }}" hint-placeholder-val="{{ false }}">
+              <img src="assets/images/items/seongsil_ball.png" alt="" style="flex:0 0 auto;height:22px;width:auto;image-rendering:pixelated;">
+            </sc-if>
+            <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;">
+              <span style="font-size:11.5px;font-weight:700;color:#2b1a1a;">{{ i.name }}</span>
+              <span style="font-size:9.5px;color:#7a6a60;">{{ i.desc }} · {{ i.hint }}</span>
+            </span>
+            <span style="font-size:12px;font-weight:700;color:#b85a00;">{{ i.price }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+  </div>
+  <div style="flex:0 0 auto;padding:10px 14px 14px;background:#0f0d1c;border-top:3px solid #2b2545;position:relative;display:flex;gap:9px;">
+    <button onClick="{{ enterHome }}" style="flex:0 0 auto;min-height:50px;padding:12px 16px;background:#f4ead2;color:#2b1a1a;border:3px solid #0d0b16;box-shadow:0 5px 0 #8a7a6a;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;">건너뛰기</button>
+    <button onClick="{{ enterHome }}" style="flex:1;min-height:50px;padding:12px;background:#f0b23c;color:#12101f;border:3px solid #0d0b16;box-shadow:0 5px 0 #8a5a1a;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">{{ goalDoneLabel }}</button>
+  </div>
+</div>
+</sc-if>
+
+<!-- ============ 앱 ============ -->
+<sc-if value="{{ isApp }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;display:flex;flex-direction:column;min-height:0;">
+
+  <!-- 상단 골드 바 -->
+  <div style="flex:0 0 auto;display:flex;flex-direction:column;gap:8px;padding:10px 12px 9px;background:#0f0d1c;border-bottom:3px solid #2b2545;box-sizing:border-box;">
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px;">
+    <div style="display:flex;align-items:baseline;gap:8px;">
+      <span style="font-size:22px;font-weight:700;color:#e8e4f5;letter-spacing:.5px;text-shadow:3px 3px 0 #2b2545;">{{ dateText }}</span>
+      <span style="font-size:13px;color:#c9b6ff;">{{ dowText }}</span>
+    </div>
+    <div style="font-size:10px;color:#9b91c4;padding-bottom:3px;">DAY 12 · 연속 {{ streak }}일</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <div style="font-size:10.5px;color:#f0b23c;">탐색 {{ enc }}회 남음</div>
+    <div style="flex:1;"></div>
+    <div style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px 4px 6px;background:#fffaf0;border:3px solid #0d0b16;box-shadow:0 3px 0 #b8ab90;">
+      <svg width="18" height="18" viewBox="0 0 16 16" style="shape-rendering:crispEdges;"><path d="M5 1h6v1h2v2h1v8h-1v2h-2v1H5v-1H3v-2H2V4h1V2h2z" fill="#f0b23c"></path><path d="M7 4h2v8H7z" fill="#b27a14"></path><path d="M5 3h2v1H5z" fill="#ffe7a8"></path></svg>
+      <span style="color:#b85a00;font-size:14px;font-weight:700;">{{ goldText }}</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:5px;border-radius:999px;padding:4px 8px 4px 6px;background:#fffaf0;border:3px solid #0d0b16;box-shadow:0 3px 0 #b8ab90;color:#2b1a1a;">
+      <img src="assets/images/items/seongsil_ball.png" alt="" style="height:16px;width:auto;image-rendering:pixelated;">
+      <span style="font-size:12px;font-weight:700;">×{{ balls }}</span>
+    </div>
+  </div>
+  </div>
+
+  <!-- 본문 -->
+  <div style="flex:1;min-height:0;position:relative;">
+
+    <!-- ---------- 홈 ---------- -->
+    <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;inset:0;overflow:hidden;background:#3a8fd6;">
+      <img src="assets/images/backgrounds/home_field.png" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center bottom;image-rendering:pixelated;pointer-events:none;">
+
+      <div style="position:absolute;left:12px;top:12px;font-size:10px;color:#c9b6ff;background:#0f0d1ccc;border:2px solid #3a3358;padding:4px 7px;">나의 필드 {{ fieldCountText }}</div>
+
+      <!-- 오른쪽 아이콘: 상점 / 가방 -->
+      <div style="position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:6px;z-index:4;">
+        <button onClick="{{ openShop }}" aria-label="상점" style="width:64px;padding:0;background:none;border:none;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:1px;">
+          <span style="position:relative;display:block;transform:translateY({{ bobY }});transition:transform .3s steps(2);">
+            <svg width="48" height="48" viewBox="0 0 16 16" style="display:block;shape-rendering:crispEdges;filter:drop-shadow(3px 0 0 #0d0b16) drop-shadow(-3px 0 0 #0d0b16) drop-shadow(0 3px 0 #0d0b16) drop-shadow(0 -3px 0 #0d0b16);"><path d="M2 1h12v2H2z" fill="#6b3f1d"></path><path d="M3 7h10v4H3z" fill="#241a3d"></path><path d="M1 3h14v3H1z M1 6h2v1H1z M5 6h2v1H5z M9 6h2v1H9z M13 6h2v1h-2z" fill="#e2574c"></path><path d="M3 3h2v3H3z M7 3h2v3H7z M11 3h2v3h-2z" fill="#f4ead2"></path><path d="M2 7h1v4H2z M13 7h1v4h-1z" fill="#6b3f1d"></path><path d="M4 9h2v2H4z" fill="#7fd36b"></path><path d="M7 8h2v3H7z" fill="#5fc9e8"></path><path d="M10 9h2v2h-2z" fill="#f0b23c"></path><path d="M1 11h14v3H1z" fill="#c98a4b"></path><path d="M1 11h14v1H1z" fill="#e8b070"></path><path d="M1 13h14v1H1z" fill="#8a5a2b"></path></svg>
+            <span style="position:absolute;right:-4px;top:-4px;width:12px;height:12px;background:#ff5a5a;border:2px solid #0d0b16;"></span>
+          </span>
+          <span style="font-size:10.5px;font-weight:700;color:#ffd479;text-shadow:2px 0 0 #0d0b16,-2px 0 0 #0d0b16,0 2px 0 #0d0b16,0 -2px 0 #0d0b16;">상점</span>
+        </button>
+        <button onClick="{{ openBag }}" aria-label="내 가방" style="width:64px;padding:0;background:none;border:none;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:1px;">
+          <span style="display:block;transform:translateY({{ bobY2 }});transition:transform .3s steps(2);">
+            <svg width="48" height="48" viewBox="0 0 16 16" style="display:block;shape-rendering:crispEdges;filter:drop-shadow(3px 0 0 #0d0b16) drop-shadow(-3px 0 0 #0d0b16) drop-shadow(0 3px 0 #0d0b16) drop-shadow(0 -3px 0 #0d0b16);"><path d="M6 1h4v1h1v2h-1V2H6v2H5V2h1z" fill="#5c3415"></path><path d="M4 4h8v1h1v9h-1v1H4v-1H3V5h1z" fill="#b0703a"></path><path d="M3 5h10v3H3z" fill="#8a5226"></path><path d="M4 4h2v1H4z M4 9h1v3H4z" fill="#e0a060"></path><path d="M5 10h6v3H5z" fill="#c98a4b"></path><path d="M5 10h6v1H5z" fill="#8a5226"></path><path d="M7 7h2v2H7z" fill="#ffd479"></path></svg>
+          </span>
+          <span style="font-size:10.5px;font-weight:700;color:#e8e4f5;text-shadow:2px 0 0 #0d0b16,-2px 0 0 #0d0b16,0 2px 0 #0d0b16,0 -2px 0 #0d0b16;">가방</span>
+        </button>
+      </div>
+
+      <!-- 돌아다니는 몬스터 -->
+      <sc-for list="{{ fieldMons }}" as="m" hint-placeholder-count="3">
+        <div style="position:absolute;left:{{ m.x }};top:{{ m.y }};transition:left 2.4s linear,top 2.4s linear;display:flex;flex-direction:column;align-items:center;z-index:{{ m.z }};">
+          <sc-if value="{{ m.hasTalk }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%);width:max-content;max-width:150px;background:#f4ead2;color:#12101f;border:3px solid #0d0b16;box-shadow:3px 3px 0 #0d0b1688;padding:6px 8px;font-size:10.5px;line-height:1.6;z-index:5;pointer-events:none;">
+              <div style="display:flex;align-items:center;gap:4px;font-size:8.5px;color:{{ m.talkColor }};margin-bottom:2px;text-shadow:1px 0 0 #0d0b16,-1px 0 0 #0d0b16,0 1px 0 #0d0b16,0 -1px 0 #0d0b16;">
+                <svg width="9" height="9" viewBox="0 0 16 16" style="shape-rendering:crispEdges;"><path d="M2 3h4v1h4V3h4v1h1v5h-1v1h-1v1h-1v1h-1v1h-1v1H6v-1H5v-1H4v-1H3v-1H2V9H1V4h1z" fill="{{ m.talkColor }}"></path></svg>{{ m.tierName }}
+              </div>
+              {{ m.talk }}
+              <span style="position:absolute;left:50%;bottom:-9px;margin-left:-5px;width:10px;height:6px;background:#f4ead2;border:3px solid #0d0b16;border-top:none;"></span>
+            </div>
+          </sc-if>
+          <button onClick="{{ m.tap }}" aria-label="{{ m.aria }}" style="background:none;border:none;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;">
+            <img src="{{ m.img }}" alt="" style="height:{{ m.h }};width:auto;image-rendering:pixelated;transform:translateY({{ m.bob }}) scaleX({{ m.flip }});">
+            <span style="width:46px;height:6px;background:#0d0b16;opacity:.45;margin-top:-3px;"></span>
+          </button>
+          <span style="font-size:9px;background:#0f0d1cd9;border:2px solid #3a3358;padding:2px 5px;margin-top:4px;color:#e8e4f5;white-space:nowrap;">{{ m.label }}</span>
+        </div>
+      </sc-for>
+
+      <!-- 슬라이드 시트: 습관 리스트 / 오늘의 성실도 -->
+      <div style="position:absolute;left:0;right:0;bottom:0;height:{{ sheetH }};transition:height .25s steps(5);background:#0f0d1c;border-top:3px solid #6d5ec4;display:flex;flex-direction:column;box-sizing:border-box;z-index:6;">
+        <button onClick="{{ toggleSheet }}" aria-label="{{ sheetAria }}" style="flex:0 0 auto;height:24px;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+          <span style="width:46px;height:5px;background:#4b4380;"></span>
+        </button>
+        <sc-if value="{{ sheetClosed }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ toggleSheet }}" style="margin:0 14px;padding:0;background:none;border:none;color:#e8e4f5;font-family:inherit;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:8px;">
+            <span style="display:flex;justify-content:space-between;align-items:flex-end;width:100%;">
+              <span style="font-size:11px;color:#9b91c4;">오늘의 성실도 · 습관 {{ checkedText }}</span>
+              <span style="font-size:15px;color:#f0b23c;font-weight:700;">{{ todayScore }}<span style="font-size:10px;color:#9b91c4;"> / 75</span></span>
+            </span>
+            <span style="display:block;width:100%;height:10px;background:#191533;border:2px solid #3a3358;box-sizing:border-box;"><span style="display:block;height:100%;width:{{ todayPct }};background:#f0b23c;"></span></span>
+            <span style="font-size:9.5px;color:#8c7fc0;">위로 밀어 습관 리스트 보기</span>
+          </button>
+        </sc-if>
+        <sc-if value="{{ sheetOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1;min-height:0;display:flex;flex-direction:column;">
+            <div style="display:flex;padding:0 14px;gap:6px;">
+              <sc-for list="{{ sheetTabs }}" as="t" hint-placeholder-count="2">
+                <button onClick="{{ t.pick }}" style="flex:1;min-height:40px;background:{{ t.bg }};border:3px solid {{ t.border }};color:{{ t.color }};font-family:inherit;font-size:11.5px;cursor:pointer;">{{ t.label }}</button>
+              </sc-for>
+            </div>
+            <div style="flex:1;min-height:0;overflow:hidden;margin-top:10px;">
+              <div style="display:flex;width:200%;height:100%;transform:translateX({{ sheetX }});transition:transform .3s;">
+                <div style="width:50%;height:100%;overflow:auto;padding:0 14px 14px;box-sizing:border-box;display:flex;flex-direction:column;gap:8px;">
+                  <sc-for list="{{ homeHabits }}" as="h" hint-placeholder-count="3">
+                    <div style="display:flex;align-items:center;gap:10px;border:3px solid #2b2545;background:#141026;padding:10px;">
+                      <svg width="26" height="26" viewBox="0 0 16 16" style="flex:0 0 auto;shape-rendering:crispEdges;filter:drop-shadow(1.5px 0 0 #0d0b16) drop-shadow(-1.5px 0 0 #0d0b16) drop-shadow(0 1.5px 0 #0d0b16) drop-shadow(0 -1.5px 0 #0d0b16);"><path d="{{ h.ic.a }}" fill="{{ h.ic.ca }}"></path><path d="{{ h.ic.b }}" fill="{{ h.ic.cb }}"></path><path d="{{ h.ic.c }}" fill="{{ h.ic.cc }}"></path></svg>
+                      <span style="flex:1;min-width:0;">
+                        <span style="display:block;font-size:12px;">{{ h.name }}</span>
+                        <span style="display:block;font-size:9.5px;color:#9b91c4;margin-top:4px;">{{ h.meta }}</span>
+                      </span>
+                      <span style="font-size:10.5px;color:{{ h.stateColor }};text-align:right;">{{ h.state }}</span>
+                    </div>
+                  </sc-for>
+                  <button onClick="{{ goChat }}" style="min-height:44px;margin-top:4px;padding:12px;background:#f0b23c;color:#12101f;border:3px solid #ffd479;box-shadow:4px 4px 0 #0d0b16;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;">챗봇에게 오늘 습관 체크받기</button>
+                </div>
+                <div style="width:50%;height:100%;overflow:auto;padding:0 14px 14px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px;">
+                  <div style="border:3px solid #2b2545;background:#141026;padding:14px;">
+                    <div style="font-size:10.5px;color:#9b91c4;">오늘의 성실도</div>
+                    <div style="display:flex;align-items:flex-end;gap:8px;margin-top:6px;">
+                      <span style="font-size:34px;color:#f0b23c;font-weight:700;">{{ todayScore }}</span>
+                      <span style="font-size:11px;color:#9b91c4;padding-bottom:8px;">/ 75 · 획득 {{ todayScore }}G</span>
+                    </div>
+                    <div style="height:12px;background:#0f0d1c;border:3px solid #3a3358;margin-top:8px;"><div style="height:100%;background:#f0b23c;width:{{ todayPct }};"></div></div>
+                  </div>
+                  <sc-for list="{{ scoreRows }}" as="r" hint-placeholder-count="3">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                      <span style="font-size:11px;width:92px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">{{ r.name }}</span>
+                      <span style="flex:1;height:10px;background:#191533;border:2px solid #3a3358;"><span style="display:block;height:100%;width:{{ r.pct }};background:{{ r.color }};"></span></span>
+                      <span style="font-size:10.5px;color:#9b91c4;width:40px;text-align:right;">{{ r.score }}/25</span>
+                    </div>
+                  </sc-for>
+                  <div style="border:3px dashed #3a3358;padding:10px;font-size:10px;color:#9b91c4;line-height:1.8;">성실도 1 = 1G · 하루 최대 3개 습관, 75G까지</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ---------- 챗봇 ---------- -->
+    <sc-if value="{{ isChat }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;">
+      <div style="flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:3px solid #2b2545;background:#141026;">
+        <span style="font-size:10px;color:#9b91c4;flex:0 0 auto;">대화 상대</span>
+        <div style="display:flex;gap:6px;overflow-x:auto;">
+          <sc-for list="{{ chatMons }}" as="c" hint-placeholder-count="3">
+            <button onClick="{{ c.pick }}" aria-label="{{ c.aria }}" style="width:46px;height:46px;flex:0 0 auto;padding:3px;background:{{ c.bg }};border:3px solid {{ c.border }};cursor:pointer;display:flex;align-items:center;justify-content:center;box-sizing:border-box;">
+              <img src="{{ c.img }}" alt="" style="max-width:100%;max-height:100%;image-rendering:pixelated;">
+            </button>
+          </sc-for>
+        </div>
+      </div>
+
+      <sc-if value="{{ notExplore }}" hint-placeholder-val="{{ true }}">
+      <div ref="{{ chatRef }}" style="flex:1;min-height:0;overflow:auto;padding:14px 12px;display:flex;flex-direction:column;gap:10px;">
+        <sc-for list="{{ chatMsgs }}" as="m" hint-placeholder-count="4">
+          <div style="display:flex;gap:8px;justify-content:{{ m.align }};align-items:flex-start;">
+            <sc-if value="{{ m.isBot }}" hint-placeholder-val="{{ true }}">
+              <div style="width:36px;height:36px;flex:0 0 auto;background:#2f2456;border:3px solid #6d5ec4;display:flex;align-items:center;justify-content:center;padding:2px;box-sizing:border-box;">
+                <img src="{{ m.avatar }}" alt="" style="max-width:100%;max-height:100%;image-rendering:pixelated;">
+              </div>
+            </sc-if>
+            <div style="max-width:76%;border:3px solid {{ m.border }};background:{{ m.bg }};padding:10px 12px;font-size:12.5px;line-height:1.9;display:flex;flex-direction:column;gap:7px;">
+              <span>{{ m.text }}</span>
+              <sc-if value="{{ m.hasReward }}" hint-placeholder-val="{{ false }}">
+                <span style="align-self:flex-start;font-size:11px;color:#12101f;background:#f0b23c;padding:3px 7px;">{{ m.reward }}</span>
+              </sc-if>
+              <sc-if value="{{ m.hasLv }}" hint-placeholder-val="{{ false }}">
+                <span style="align-self:flex-start;font-size:11px;color:#c9b6ff;border:2px dashed #6d5ec4;padding:3px 7px;">{{ m.lvup }}</span>
+              </sc-if>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="flex:0 0 auto;border-top:3px solid #2b2545;background:#0f0d1c;padding:12px;display:flex;flex-direction:column;gap:9px;">
+        <sc-if value="{{ dockStart }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ restartChat }}" style="min-height:46px;padding:13px;background:#f0b23c;color:#12101f;border:3px solid #ffd479;box-shadow:4px 4px 0 #0d0b16;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">오늘 습관 체크 시작</button>
+        </sc-if>
+        <sc-if value="{{ dockYN }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;gap:9px;">
+            <button onClick="{{ sayNo }}" style="flex:1;min-height:46px;padding:12px;background:#191533;color:#c9c3e3;border:3px solid #3a3358;font-family:inherit;font-size:12.5px;cursor:pointer;">못 했어</button>
+            <button onClick="{{ sayYes }}" style="flex:1;min-height:46px;padding:12px;background:#f0b23c;color:#12101f;border:3px solid #ffd479;box-shadow:4px 4px 0 #0d0b16;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;">했어!</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{ dockAmount }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="number" aria-label="수행량" value="{{ num }}" onChange="{{ setNum }}" placeholder="숫자만" style="flex:1;min-width:0;padding:11px;background:#12101f;border:3px solid #3a3358;color:#f0b23c;font-family:inherit;font-size:17px;outline:none;">
+            <span style="font-size:12px;color:#9b91c4;min-width:24px;">{{ unitText }}</span>
+            <button onClick="{{ sendNum }}" style="min-height:46px;padding:11px 15px;background:#f0b23c;color:#12101f;border:3px solid #ffd479;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;">전송</button>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <sc-for list="{{ quickNums }}" as="q" hint-placeholder-count="3">
+              <button onClick="{{ q.pick }}" style="min-height:36px;padding:6px 11px;background:#171331;border:3px solid #2b2545;color:#c9c3e3;font-family:inherit;font-size:11px;cursor:pointer;">{{ q.label }}</button>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{ dockDone }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;gap:9px;">
+            <button onClick="{{ restartChat }}" style="flex:0 0 auto;min-height:46px;padding:12px 14px;background:#191533;color:#c9c3e3;border:3px solid #3a3358;font-family:inherit;font-size:11.5px;cursor:pointer;">다시 체크</button>
+            <button onClick="{{ explore }}" disabled="{{ noEnc }}" style="flex:1;min-height:46px;padding:12px;background:{{ exploreBg }};color:{{ exploreColor }};border:3px solid {{ exploreBorder }};box-shadow:4px 4px 0 #0d0b16;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;">탐색하기 ({{ enc }}회 남음)</button>
+          </div>
+        </sc-if>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isExplore }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;min-height:0;display:flex;flex-direction:column;">
+        <div style="flex:1;min-height:0;position:relative;overflow:hidden;background:#86d06a;">
+          <img src="assets/images/backgrounds/home_field.png" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 60%;image-rendering:pixelated;pointer-events:none;">
+          <div style="position:absolute;left:10px;top:10px;display:flex;align-items:center;gap:6px;background:#fffaf0;border:3px solid #0d0b16;padding:4px 8px;font-size:11px;font-weight:700;color:#2b1a1a;">
+            탐색
+            <sc-for list="{{ encPips }}" as="p" hint-placeholder-count="3">
+              <span style="width:10px;height:10px;background:{{ p.bg }};border:2px solid #0d0b16;"></span>
+            </sc-for>
+          </div>
+          <sc-if value="{{ encNew }}" hint-placeholder-val="{{ true }}">
+            <div style="position:absolute;right:10px;top:10px;background:#d94a3d;border:3px solid #0d0b16;padding:4px 10px;font-size:13px;font-weight:700;color:#ffffff;text-shadow:1px 1px 0 #7a1f17;transform:rotate(-4deg);">NEW!</div>
+          </sc-if>
+          <sc-if value="{{ encDup }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;right:10px;top:10px;display:flex;align-items:center;gap:4px;background:#ffd24d;border:3px solid #0d0b16;padding:4px 9px;font-size:12px;font-weight:700;color:#2b1a1a;">
+              <svg width="13" height="13" viewBox="0 0 16 16" style="shape-rendering:crispEdges;"><path d="M5 1h6v1h2v2h1v8h-1v2h-2v1H5v-1H3v-2H2V4h1V2h2z" fill="#f0b23c"></path><path d="M7 4h2v8H7z" fill="#b27a14"></path></svg>+15G
+            </div>
+          </sc-if>
+          <div style="position:absolute;left:50%;bottom:16%;margin-left:-90px;width:180px;height:40px;background:#5fb158;border:3px solid #3d8a3c;border-radius:50%;box-shadow:inset 0 -6px 0 #4f9e4a;"></div>
+          <sc-if value="{{ encFound }}" hint-placeholder-val="{{ true }}">
+            <div style="position:absolute;left:0;right:0;bottom:calc(16% + 18px);display:flex;flex-direction:column;align-items:center;">
+              <span style="width:28px;height:34px;background:#fffaf0;border:3px solid #0d0b16;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#d94a3d;margin-bottom:6px;box-sizing:border-box;transform:translateY({{ bobY }});">!</span>
+              <img src="{{ encImg }}" alt="{{ encName }}" style="height:150px;width:auto;image-rendering:pixelated;transform:translateY({{ bobY }});">
+            </div>
+          </sc-if>
+          <sc-if value="{{ encMiss }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;left:0;right:0;bottom:calc(16% + 14px);display:flex;justify-content:center;gap:4px;">
+              <svg width="70" height="56" viewBox="0 0 20 16" style="shape-rendering:crispEdges;transform:translateX({{ rustle }});"><path d="M1 16V8h2V4h2v4h2V2h2v6h2V3h2v5h2V5h2v5h2v6z" fill="#3d8a3c"></path><path d="M3 16v-6h2v6z M9 16V9h2v7z M15 16v-5h2v5z" fill="#5fb158"></path></svg>
+              <svg width="70" height="56" viewBox="0 0 20 16" style="shape-rendering:crispEdges;transform:translateX({{ rustle2 }});"><path d="M1 16V8h2V4h2v4h2V2h2v6h2V3h2v5h2V5h2v5h2v6z" fill="#3d8a3c"></path><path d="M3 16v-6h2v6z M9 16V9h2v7z M15 16v-5h2v5z" fill="#5fb158"></path></svg>
+            </div>
+          </sc-if>
+        </div>
+        <div style="flex:0 0 auto;background:#0f0d1c;border-top:3px solid #2b2545;padding:12px;display:flex;flex-direction:column;gap:10px;">
+          <div style="position:relative;background:#fffaf0;border:4px solid #0d0b16;box-shadow:4px 4px 0 #0d0b16;padding:12px 12px;min-height:64px;box-sizing:border-box;font-size:12.5px;line-height:1.8;color:#2b1a1a;">
+            {{ encLine }}
+            <span style="position:absolute;right:10px;bottom:4px;font-size:11px;color:#d94a3d;opacity:{{ cursorOp }};">▼</span>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button onClick="{{ leaveExplore }}" style="flex:0 0 auto;min-height:50px;padding:10px 14px;background:#f4ead2;border:3px solid #0d0b16;box-shadow:0 5px 0 #8a7a6a;color:#2b1a1a;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;">그만</button>
+            <sc-if value="{{ ballOffer }}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{ useBall }}" aria-label="성실볼 사용" style="flex:0 0 auto;min-height:50px;padding:6px 10px;background:#e9e2ff;border:3px solid #0d0b16;box-shadow:0 5px 0 #6d5ec4;font-family:inherit;font-size:10px;font-weight:700;color:#2b1a1a;cursor:pointer;display:flex;align-items:center;gap:5px;"><img src="assets/images/items/seongsil_ball.png" alt="" style="height:24px;width:auto;image-rendering:pixelated;">×{{ balls }}</button>
+            </sc-if>
+            <button onClick="{{ explore }}" disabled="{{ noEnc }}" style="flex:1;min-height:50px;padding:10px;background:{{ encGoBg }};border:3px solid #0d0b16;box-shadow:0 5px 0 {{ encGoShadow }};color:#2b1a1a;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">{{ encGoLabel }}</button>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+    </div>
+    </sc-if>
+
+    <!-- ---------- 통계 ---------- -->
+    <sc-if value="{{ isStats }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:12px;box-sizing:border-box;">
+      <div style="border:3px solid #f0b23c;background:#141026;padding:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+          <div>
+            <div style="font-size:10.5px;color:#9b91c4;">연속 출석</div>
+            <div style="font-size:30px;color:#f0b23c;font-weight:700;margin-top:4px;">{{ streak }}<span style="font-size:13px;">일</span></div>
+          </div>
+          <div style="font-size:10px;color:#9b91c4;text-align:right;line-height:1.8;">최장 기록 15일<br>최근 14일</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(14,minmax(0,1fr));gap:3px;margin-top:12px;">
+          <sc-for list="{{ streakDays }}" as="d" hint-placeholder-count="14">
+            <div style="aspect-ratio:1;background:{{ d.bg }};border:2px solid {{ d.border }};"></div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="border:3px solid #2b2545;background:#141026;padding:14px;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;">
+          <span>성실도 그래프 · 최근 7일</span><span style="color:#9b91c4;">평균 {{ weekAvg }}</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end;height:150px;margin-top:14px;border-bottom:3px solid #3a3358;padding-bottom:0;">
+          <sc-for list="{{ bars }}" as="b" hint-placeholder-count="7">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px;height:100%;">
+              <span style="font-size:9.5px;color:{{ b.valColor }};">{{ b.val }}</span>
+              <div style="width:100%;height:{{ b.h }};background:{{ b.color }};box-shadow:inset 0 3px 0 #ffffff33;"></div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:6px;">
+          <sc-for list="{{ bars }}" as="b" hint-placeholder-count="7">
+            <span style="flex:1;text-align:center;font-size:10px;color:{{ b.labelColor }};">{{ b.label }}</span>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="font-size:11px;color:#9b91c4;">카테고리별 레벨</div>
+        <sc-for list="{{ catRows }}" as="c" hint-placeholder-count="6">
+          <div style="border:3px solid #2b2545;background:#0f0d1c;padding:10px 12px;display:flex;align-items:center;gap:12px;opacity:{{ c.op }};">
+            <div style="width:38px;height:38px;flex:0 0 auto;background:#191533;border:3px solid {{ c.color }};display:flex;align-items:center;justify-content:center;box-sizing:border-box;"><svg width="24" height="24" viewBox="0 0 16 16" style="shape-rendering:crispEdges;filter:drop-shadow(1.5px 0 0 #0d0b16) drop-shadow(-1.5px 0 0 #0d0b16) drop-shadow(0 1.5px 0 #0d0b16) drop-shadow(0 -1.5px 0 #0d0b16);"><path d="{{ c.ic.a }}" fill="{{ c.ic.ca }}"></path><path d="{{ c.ic.b }}" fill="{{ c.ic.cb }}"></path><path d="{{ c.ic.c }}" fill="{{ c.ic.cc }}"></path></svg></div>
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;justify-content:space-between;font-size:12px;"><span>{{ c.name }}</span><span style="color:{{ c.color }};">{{ c.lvText }}</span></div>
+              <div style="height:9px;background:#191533;border:2px solid #3a3358;margin-top:6px;"><div style="height:100%;background:{{ c.color }};width:{{ c.pct }};"></div></div>
+              <div style="font-size:9.5px;color:#8c7fc0;margin-top:5px;">{{ c.sub }}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ---------- 도감 ---------- -->
+    <sc-if value="{{ isDex }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;overflow:auto;padding:10px 10px 14px;display:flex;flex-direction:column;gap:9px;box-sizing:border-box;background:{{ dexBg }};background-image:repeating-linear-gradient(0deg,{{ dexStripe }} 0 3px,{{ dexBg }} 3px 12px);transition:background-color .3s;">
+      <div style="display:flex;align-items:center;gap:8px;padding:2px 2px 0;">
+        <span style="width:22px;height:22px;background:#7fe3ff;border:3px solid #3a1f1a;box-shadow:inset -4px -4px 0 #3fb0d6,inset 3px 3px 0 #e6fbff;box-sizing:border-box;"></span>
+        <span style="width:10px;height:10px;background:#ff8a8a;border:2px solid #3a1f1a;"></span>
+        <span style="width:10px;height:10px;background:#ffd24d;border:2px solid #3a1f1a;"></span>
+        <span style="width:10px;height:10px;background:#7fd36b;border:2px solid #3a1f1a;"></span>
+        <span style="flex:1;font-size:16px;font-weight:700;color:#2b1a1a;text-shadow:2px 2px 0 #fffaf0;letter-spacing:1px;">몬스터 도감</span>
+        <span style="font-size:10.5px;color:#ffe58a;background:#3a1f1a;padding:4px 8px;">발견 {{ dexTotal }}</span>
+      </div>
+
+      <div style="background:#fffaf0;border:3px solid #3a1f1a;box-shadow:0 4px 0 {{ dexShade }};padding:10px;display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:12px;font-weight:700;color:#2b1a1a;flex:1;">카테고리 슬롯 {{ slotText }}</span>
+          <span style="font-size:10px;color:#7a6a60;">{{ slotNextText }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="flex:1;height:12px;background:#3a1f1a;padding:2px;box-sizing:border-box;"><span style="display:block;height:100%;width:{{ slotPct }};background:#f0b23c;"></span></span>
+          <sc-for list="{{ slotSteps }}" as="m" hint-placeholder-count="3">
+            <span style="min-width:30px;text-align:center;font-size:10px;font-weight:700;color:{{ m.color }};background:{{ m.bg }};border:2px solid #3a1f1a;padding:1px 4px;">{{ m.n }}</span>
+          </sc-for>
+        </div>
+        <sc-if value="{{ canOpenSlot }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ openCatPick }}" style="min-height:44px;padding:8px;background:#ffd24d;border:3px solid #0d0b16;box-shadow:0 4px 0 #b27a14;font-family:inherit;font-size:13px;font-weight:700;color:#2b1a1a;cursor:pointer;">새 카테고리 열기! ▶</button>
+        </sc-if>
+      </div>
+
+      <div style="background:#f4f1e6;border:4px solid #3a1f1a;box-shadow:inset 0 0 0 3px #fffaf0,4px 4px 0 {{ dexShade }};padding:10px;display:flex;flex-direction:column;gap:9px;">
+        <div style="display:flex;gap:11px;">
+          <div style="position:relative;width:128px;height:128px;flex:0 0 auto;background-color:#cfeec0;background-image:repeating-conic-gradient(#c2e6b2 0 25%,#cfeec0 0 50%);background-size:16px 16px;border:3px solid #3a1f1a;display:flex;align-items:center;justify-content:center;box-sizing:border-box;">
+            <sc-if value="{{ dd.hasImg }}" hint-placeholder-val="{{ true }}">
+              <img src="{{ dd.img }}" alt="{{ dd.name }}" style="max-width:104px;max-height:104px;image-rendering:pixelated;filter:{{ dd.filter }};opacity:{{ dd.op }};transform:translateY({{ bobY }});">
+            </sc-if>
+            <sc-if value="{{ dd.noImg }}" hint-placeholder-val="{{ false }}">
+              <span style="font-size:44px;font-weight:700;color:#9fc79a;">?</span>
+            </sc-if>
+            <sc-if value="{{ dd.owned }}" hint-placeholder-val="{{ true }}">
+              <img src="assets/images/items/seongsil_ball.png" alt="" style="position:absolute;right:4px;top:4px;height:20px;width:auto;image-rendering:pixelated;">
+            </sc-if>
+          </div>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;">
+            <span style="font-size:11px;color:#7a6a60;">No.{{ dd.no }}</span>
+            <span style="font-size:16px;font-weight:700;color:#2b1a1a;">{{ dd.name }}</span>
+            <span style="align-self:flex-start;display:flex;align-items:center;gap:5px;background:{{ dd.typeBg }};border:2px solid #3a1f1a;padding:3px 8px 3px 5px;font-size:10.5px;color:#2b1a1a;font-weight:700;">
+              <svg width="14" height="14" viewBox="0 0 16 16" style="shape-rendering:crispEdges;"><path d="{{ dd.ic.a }}" fill="{{ dd.ic.ca }}"></path><path d="{{ dd.ic.b }}" fill="{{ dd.ic.cb }}"></path><path d="{{ dd.ic.c }}" fill="{{ dd.ic.cc }}"></path></svg>{{ dd.type }}
+            </span>
+            <span style="display:flex;align-items:center;gap:2px;">
+              <sc-for list="{{ dd.stars }}" as="st" hint-placeholder-count="3">
+                <svg width="13" height="13" viewBox="0 0 16 16" style="shape-rendering:crispEdges;"><path d="M7 0h2v4h5v2h-2v2h1v6h-2v-2H5v2H3V8h1V6H2V4h5z" fill="{{ st.fill }}"></path></svg>
+              </sc-for>
+              <span style="font-size:10px;color:#7a6a60;margin-left:4px;">{{ dd.rarity }}</span>
+            </span>
+            <span style="font-size:10px;color:{{ dd.stateColor }};font-weight:700;">{{ dd.state }}</span>
+          </div>
+        </div>
+        <div style="border-top:3px dashed #d8cdb5;padding-top:8px;font-size:11px;line-height:1.85;color:#2b1a1a;">{{ dd.desc }}</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5px;">
+        <sc-for list="{{ dexTabs }}" as="t" hint-placeholder-count="6">
+          <button onClick="{{ t.pick }}" aria-label="{{ t.aria }}" style="min-height:52px;padding:5px 0 4px;background:{{ t.bg }};border:3px solid #3a1f1a;box-shadow:{{ t.shadow }};transform:translateY({{ t.lift }});font-family:inherit;font-size:9.5px;color:#2b1a1a;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;">
+            <svg width="22" height="22" viewBox="0 0 16 16" style="shape-rendering:crispEdges;filter:drop-shadow(1px 0 0 #3a1f1a) drop-shadow(-1px 0 0 #3a1f1a) drop-shadow(0 1px 0 #3a1f1a) drop-shadow(0 -1px 0 #3a1f1a);"><path d="{{ t.ic.a }}" fill="{{ t.ic.ca }}"></path><path d="{{ t.ic.b }}" fill="{{ t.ic.cb }}"></path><path d="{{ t.ic.c }}" fill="{{ t.ic.cc }}"></path></svg>
+            <span>{{ t.count }}</span>
+          </button>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px;color:#2b1a1a;font-size:10.5px;">
+        <span style="font-weight:700;">{{ dexName }}</span><span>{{ dexSub }}</span>
+        <span style="flex:1;height:8px;background:#fffaf0;border:2px solid #3a1f1a;"><span style="display:block;height:100%;width:{{ dexPct }};background:#f0b23c;"></span></span>
+      </div>
+
+      <div style="background:#fffaf0;border:4px solid #3a1f1a;box-shadow:4px 4px 0 {{ dexShade }};display:flex;flex-direction:column;">
+        <sc-for list="{{ dexSlots }}" as="m" hint-placeholder-count="6">
+          <button onClick="{{ m.pick }}" style="display:flex;align-items:center;gap:9px;min-height:46px;padding:5px 10px 5px 6px;background:{{ m.rowBg }};border:none;border-bottom:2px solid #eadfc6;font-family:inherit;color:#2b1a1a;cursor:pointer;text-align:left;">
+            <svg width="10" height="10" viewBox="0 0 4 4" style="flex:0 0 auto;opacity:{{ m.arrowOp }};shape-rendering:crispEdges;"><path d="M0 0h1v1h1v1h1v1H2v1H1v1H0z" fill="#d94a3d"></path></svg>
+            <span style="font-size:10.5px;color:#7a6a60;width:48px;flex:0 0 auto;">No.{{ m.no }}</span>
+            <span style="width:34px;height:34px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;">
+              <sc-if value="{{ m.hasImg }}" hint-placeholder-val="{{ true }}">
+                <img src="{{ m.img }}" alt="" style="max-width:34px;max-height:34px;image-rendering:pixelated;filter:{{ m.filter }};opacity:{{ m.op }};">
+              </sc-if>
+              <sc-if value="{{ m.noImg }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size:15px;font-weight:700;color:#cbbd9f;">?</span>
+              </sc-if>
+            </span>
+            <span style="flex:1;min-width:0;font-size:12px;font-weight:700;color:{{ m.nameColor }};">{{ m.name }}</span>
+            <span style="font-size:9.5px;color:#7a6a60;">{{ m.sub }}</span>
+            <sc-if value="{{ m.owned }}" hint-placeholder-val="{{ false }}">
+              <img src="assets/images/items/seongsil_ball.png" alt="" style="flex:0 0 auto;height:16px;width:auto;image-rendering:pixelated;">
+            </sc-if>
+          </button>
+        </sc-for>
+      </div>
+      <div style="font-size:9.5px;color:#4a3a30;line-height:1.8;">카테고리 레벨이 오르면 새로운 몬스터가 탐색에 나타나요 · 이미 가진 몬스터를 또 만나면 골드로 바뀌어요</div>
+    </div>
+    </sc-if>
+
+    <!-- ---------- 카테고리 해금 선택 ---------- -->
+    <sc-if value="{{ isCatPick }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:#0d0b16b3;z-index:25;display:flex;flex-direction:column;justify-content:flex-end;">
+      <div style="background:#fffaf0;border-top:4px solid #0d0b16;padding:18px 14px 16px;display:flex;flex-direction:column;gap:12px;position:relative;">
+        <div style="position:absolute;left:50%;top:-16px;transform:translateX(-50%);background:#d94a3d;border:3px solid #0d0b16;padding:3px 16px;font-size:12px;font-weight:700;color:#ffffff;white-space:nowrap;">{{ catPickTitle }}</div>
+        <div style="font-size:11.5px;color:#2b1a1a;line-height:1.8;text-align:center;margin-top:4px;">{{ catPickMsg }}</div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
+          <sc-for list="{{ catPickList }}" as="c" hint-placeholder-count="3">
+            <button onClick="{{ c.pick }}" style="min-height:90px;padding:8px 4px;background:{{ c.bg }};border:3px solid #0d0b16;box-shadow:0 4px 0 #0d0b16;font-family:inherit;color:#2b1a1a;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;">
+              <span style="width:40px;height:40px;background:{{ c.color }};border:3px solid #0d0b16;display:flex;align-items:center;justify-content:center;box-sizing:border-box;"><svg width="24" height="24" viewBox="0 0 16 16" style="shape-rendering:crispEdges;filter:drop-shadow(1.5px 0 0 #0d0b16) drop-shadow(-1.5px 0 0 #0d0b16) drop-shadow(0 1.5px 0 #0d0b16) drop-shadow(0 -1.5px 0 #0d0b16);"><path d="{{ c.ic.a }}" fill="{{ c.ic.ca }}"></path><path d="{{ c.ic.b }}" fill="{{ c.ic.cb }}"></path><path d="{{ c.ic.c }}" fill="{{ c.ic.cc }}"></path></svg></span>
+              <span style="font-size:11px;font-weight:700;">{{ c.name }}</span>
+              <span style="font-size:9px;color:#7a6a60;">{{ c.type }} 타입</span>
+            </button>
+          </sc-for>
+        </div>
+        <button onClick="{{ closeCatPick }}" style="min-height:40px;background:none;border:none;color:#7a6a60;font-family:inherit;font-size:11px;text-decoration:underline;cursor:pointer;">나중에 고를게요</button>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ---------- 목표 ---------- -->
+    <sc-if value="{{ isGoals }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;overflow:auto;padding:16px 14px;display:flex;flex-direction:column;gap:18px;box-sizing:border-box;">
+      <sc-for list="{{ goalSections }}" as="s" hint-placeholder-count="2">
+        <div style="display:flex;flex-direction:column;gap:9px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="background:#d94a3d;border:3px solid #0d0b16;padding:2px 10px;font-size:12px;font-weight:700;color:#ffffff;text-shadow:1px 1px 0 #7a1f17;">{{ s.name }}</span>
+            <span style="font-size:10px;color:#9b91c4;">{{ s.slotText }}</span>
+            <span style="flex:1;"></span>
+            <span style="display:flex;align-items:center;gap:4px;background:#ffd24d;border:2px solid #0d0b16;padding:2px 7px;font-size:10px;font-weight:700;color:#2b1a1a;">
+              <svg width="11" height="11" viewBox="0 0 16 16" style="shape-rendering:crispEdges;"><path d="M5 1h6v1h2v2h1v8h-1v2h-2v1H5v-1H3v-2H2V4h1V2h2z" fill="#f0b23c"></path><path d="M7 4h2v8H7z" fill="#b27a14"></path></svg>{{ s.reward }}
+            </span>
+          </div>
+          <sc-for list="{{ s.items }}" as="g" hint-placeholder-count="2">
+            <div style="display:flex;align-items:stretch;background:{{ g.cardBg }};border:3px solid #0d0b16;box-shadow:0 4px 0 #0d0b16;">
+              <button onClick="{{ g.toggle }}" style="flex:1;min-width:0;text-align:left;display:flex;align-items:flex-start;gap:11px;background:none;border:none;padding:11px 6px 11px 10px;font-family:inherit;color:#2b1a1a;cursor:pointer;">
+              <span style="width:22px;height:22px;flex:0 0 auto;background:{{ g.fill }};border:3px solid #0d0b16;box-sizing:border-box;display:flex;align-items:center;justify-content:center;margin-top:1px;">
+                <sc-if value="{{ g.done }}" hint-placeholder-val="{{ false }}"><svg width="12" height="12" viewBox="0 0 16 16"><path d="M2 8l4 4 8-8" stroke="#2b1a1a" stroke-width="3.5" fill="none"></path></svg></sc-if>
+              </span>
+              <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:5px;">
+                <span style="font-size:12.5px;font-weight:700;color:{{ g.txt }};text-decoration:{{ g.deco }};">{{ g.title }}</span>
+                <span style="font-size:10px;color:#7a6a60;line-height:1.7;">{{ g.detail }}</span>
+              </span>
+              <span style="flex:0 0 auto;display:flex;align-items:center;gap:3px;background:{{ g.tagBg }};border:2px solid {{ g.tagBorder }};padding:2px 6px;font-size:11px;font-weight:700;color:#2b1a1a;opacity:{{ g.tagOp }};"><svg width="12" height="12" viewBox="0 0 16 16" style="flex:0 0 auto;shape-rendering:crispEdges;"><path d="M5 1h6v1h2v2h1v8h-1v2h-2v1H5v-1H3v-2H2V4h1V2h2z" fill="#f0b23c"></path><path d="M7 4h2v8H7z" fill="#b27a14"></path><path d="M5 3h2v1H5z" fill="#ffe7a8"></path></svg>+{{ g.amt }}</span>
+            </button>
+              <button onClick="{{ g.edit }}" aria-label="목표 수정" style="width:42px;flex:0 0 auto;background:#f4ead2;border:none;border-left:3px solid #0d0b16;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                <svg width="16" height="16" viewBox="0 0 16 16" style="shape-rendering:crispEdges;"><path d="M11 1h2v1h1v2h-1v1h-1v1h-1v1h-1v1H9v1H8v1H7v1H6v1H3v-3h1v-1h1V9h1V8h1V7h1V6h1V5h1V4h1V3h1V2h-1z" fill="#d94a3d"></path><path d="M3 12h3v3H2v-2h1z" fill="#2b1a1a"></path></svg>
+              </button>
+            </div>
+          </sc-for>
+          <sc-if value="{{ s.drafting }}" hint-placeholder-val="{{ false }}">
+            <div style="background:#fffaf0;border:3px solid #0d0b16;box-shadow:0 4px 0 #0d0b16;padding:12px;display:flex;flex-direction:column;gap:9px;">
+              <span style="align-self:flex-start;background:#6d5ec4;border:2px solid #0d0b16;padding:1px 8px;font-size:11px;font-weight:700;color:#ffffff;">{{ s.formTitle }}</span>
+              <label style="display:flex;flex-direction:column;gap:5px;">
+                <span style="font-size:10px;font-weight:700;color:#7a6a60;">목표</span>
+                <input value="{{ s.gdT }}" onChange="{{ s.setGdT }}" placeholder="예: 주 3회 러닝" style="padding:10px;background:#f4ead2;border:3px solid #0d0b16;color:#2b1a1a;font-family:inherit;font-size:12px;outline:none;">
+              </label>
+              <label style="display:flex;flex-direction:column;gap:5px;">
+                <span style="font-size:10px;font-weight:700;color:#7a6a60;">상세 내용</span>
+                <textarea value="{{ s.gdD }}" onChange="{{ s.setGdD }}" rows="3" placeholder="언제, 얼마나, 어떻게 할지 적어두세요" style="padding:10px;background:#f4ead2;border:3px solid #0d0b16;color:#2b1a1a;font-family:inherit;font-size:11.5px;line-height:1.7;outline:none;resize:none;"></textarea>
+              </label>
+              <div style="display:flex;gap:8px;">
+                <sc-if value="{{ s.editing }}" hint-placeholder-val="{{ false }}">
+                  <button onClick="{{ s.del }}" style="flex:0 0 auto;min-height:42px;padding:9px 12px;background:#e2574c;color:#ffffff;border:3px solid #0d0b16;box-shadow:0 3px 0 #7a1f17;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;">삭제</button>
+                </sc-if>
+                <button onClick="{{ s.cancel }}" style="flex:0 0 auto;min-height:42px;padding:9px 13px;background:#f4ead2;color:#2b1a1a;border:3px solid #0d0b16;box-shadow:0 3px 0 #8a7a6a;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;">취소</button>
+                <button onClick="{{ s.save }}" style="flex:1;min-height:42px;padding:9px;background:#f0b23c;color:#12101f;border:3px solid #0d0b16;box-shadow:0 3px 0 #8a5a1a;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;">저장</button>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ s.canAdd }}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{ s.add }}" style="min-height:44px;padding:10px;background:transparent;border:3px dashed #6d5ec4;color:#c9b6ff;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;">+ 목표 추가 · 빈 슬롯 {{ s.freeLeft }}칸</button>
+          </sc-if>
+          <sc-if value="{{ s.locked }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ s.unlock }}" style="min-height:44px;padding:10px;background:#241a3d;border:3px solid #f0b23c;color:#ffd479;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;">슬롯 추가 열기 (유료 · 기록용)</button>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+    </sc-if>
+
+    <!-- ---------- 오버레이: 상점 ---------- -->
+    <sc-if value="{{ isShop }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:#0d0b16b3;z-index:20;display:flex;flex-direction:column;justify-content:flex-end;">
+      <div style="position:relative;max-height:95%;display:flex;flex-direction:column;background:#f4e2c0;background-image:repeating-linear-gradient(0deg,#e6cf9f 0 3px,#f4e2c0 3px 26px);border-top:4px solid #3a1f1a;box-sizing:border-box;">
+        <div style="flex:0 0 auto;height:30px;background:repeating-linear-gradient(90deg,#e2574c 0 26px,#f4ead2 26px 52px);border-bottom:4px solid #3a1f1a;"></div>
+        <div style="flex:0 0 auto;height:10px;margin-top:-4px;background:repeating-linear-gradient(90deg,#e2574c 0 13px,transparent 13px 26px,#f4ead2 26px 39px,transparent 39px 52px);"></div>
+        <div style="position:absolute;left:50%;top:12px;transform:translateX(-50%);background:#8a5a2b;border:4px solid #3a1f1a;box-shadow:0 4px 0 #5c3415;padding:5px 22px;font-size:16px;font-weight:700;color:#fff3dc;text-shadow:2px 2px 0 #5c3415;white-space:nowrap;">상점</div>
+        <button onClick="{{ closeOverlay }}" aria-label="닫기" style="position:absolute;right:10px;top:8px;width:40px;height:40px;background:#e2574c;border:3px solid #3a1f1a;box-shadow:0 3px 0 #7a1f17;color:#ffffff;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="3.5" fill="none"></path></svg></button>
+
+        <div style="flex:1;min-height:0;overflow:auto;padding:16px 14px 16px;display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;align-items:flex-end;gap:10px;">
+            <div style="position:relative;width:86px;height:118px;flex:0 0 auto;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;">
+              <img src="assets/images/characters/shopkeeper.png" alt="상점 주인" style="position:relative;height:150px;width:auto;margin-bottom:-38px;image-rendering:pixelated;transform:translateY({{ bobY }});transition:transform .3s steps(2);">
+              <div style="position:absolute;left:0;right:0;bottom:0;height:16px;background:#c98a4b;border:3px solid #3a1f1a;border-bottom:none;box-sizing:border-box;box-shadow:inset 0 3px 0 #e8b070;"></div>
+            </div>
+            <div style="position:relative;flex:1;background:#fffaf0;border:3px solid #3a1f1a;padding:9px 12px;font-size:11.5px;line-height:1.8;color:#2b1a1a;margin-bottom:14px;">
+              <span style="display:block;font-size:9.5px;color:#d94a3d;font-weight:700;margin-bottom:2px;">상점 주인 마루</span>
+              {{ shopLine }}
+              <span style="position:absolute;left:-9px;bottom:12px;width:6px;height:10px;background:#fffaf0;border:3px solid #3a1f1a;border-right:none;"></span>
+            </div>
+          </div>
+          <sc-for list="{{ shopItems }}" as="i" hint-placeholder-count="4">
+            <div style="display:flex;align-items:center;gap:11px;background:#fffaf0;border:3px solid #3a1f1a;box-shadow:0 4px 0 #b08a5a;padding:9px 10px;">
+              <div style="width:52px;height:52px;flex:0 0 auto;background:#f4f1e6;background-image:repeating-conic-gradient(#ebe4d2 0 25%,#f4f1e6 0 50%);background-size:12px 12px;border:3px solid #3a1f1a;display:flex;align-items:center;justify-content:center;box-sizing:border-box;">
+                <sc-if value="{{ i.isPotion }}" hint-placeholder-val="{{ true }}">
+                  <img src="{{ i.img }}" alt="" style="height:34px;width:auto;image-rendering:pixelated;">
+                </sc-if>
+                <sc-if value="{{ i.isBall }}" hint-placeholder-val="{{ false }}">
+                  <img src="assets/images/items/seongsil_ball.png" alt="" style="height:34px;width:auto;image-rendering:pixelated;">
+                </sc-if>
+              </div>
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;">
+                <span style="font-size:12.5px;font-weight:700;color:#2b1a1a;">{{ i.name }}</span>
+                <span style="font-size:10px;color:#7a6a60;line-height:1.5;">{{ i.desc }}</span>
+                <span style="align-self:flex-start;font-size:9.5px;color:#fff3dc;background:#8a5a2b;padding:2px 6px;">보유 {{ i.owned }}</span>
+              </div>
+              <button onClick="{{ i.buy }}" disabled="{{ i.cant }}" style="min-width:72px;min-height:44px;padding:6px 8px;background:{{ i.btnBg }};border:3px solid #3a1f1a;box-shadow:0 4px 0 {{ i.btnShadow }};color:{{ i.btnColor }};font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;">
+                <svg width="14" height="14" viewBox="0 0 16 16" style="shape-rendering:crispEdges;"><path d="M5 1h6v1h2v2h1v8h-1v2h-2v1H5v-1H3v-2H2V4h1V2h2z" fill="{{ i.coin }}"></path><path d="M7 4h2v8H7z" fill="#b27a14"></path></svg>{{ i.priceText }}
+              </button>
+            </div>
+          </sc-for>
+          <div style="font-size:9.5px;color:#7a5a3a;line-height:1.8;">물약은 몬스터 정보에서 사용 · 레벨당 125 EXP · Lv.10 1차 진화, Lv.20 최종 진화</div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ---------- 오버레이: 가방 ---------- -->
+    <sc-if value="{{ isBag }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:#0d0b16b3;z-index:20;display:flex;flex-direction:column;justify-content:flex-end;">
+      <div style="height:90%;background:#b0703a;border-top:4px solid #3a1f1a;padding:8px;box-sizing:border-box;display:flex;flex-direction:column;">
+        <div style="flex:1;min-height:0;border:2px dashed #f4d9b0;padding:10px;display:flex;flex-direction:column;gap:0;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <svg width="34" height="34" viewBox="0 0 16 16" style="shape-rendering:crispEdges;filter:drop-shadow(2px 0 0 #3a1f1a) drop-shadow(-2px 0 0 #3a1f1a) drop-shadow(0 2px 0 #3a1f1a) drop-shadow(0 -2px 0 #3a1f1a);"><path d="M6 1h4v1h1v2h-1V2H6v2H5V2h1z" fill="#5c3415"></path><path d="M4 4h8v1h1v9h-1v1H4v-1H3V5h1z" fill="#d89058"></path><path d="M3 5h10v3H3z" fill="#8a5226"></path><path d="M5 10h6v3H5z" fill="#e8b070"></path><path d="M7 7h2v2H7z" fill="#ffd479"></path></svg>
+            <span style="flex:1;font-size:17px;font-weight:700;color:#fff3dc;text-shadow:2px 2px 0 #5c3415;">내 가방</span>
+            <button onClick="{{ closeOverlay }}" aria-label="닫기" style="width:40px;height:40px;background:#e2574c;border:3px solid #3a1f1a;box-shadow:0 3px 0 #7a1f17;color:#ffffff;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="3.5" fill="none"></path></svg></button>
+          </div>
+          <div style="display:flex;gap:4px;padding-left:6px;">
+            <sc-for list="{{ bagTabs }}" as="t" hint-placeholder-count="2">
+              <button onClick="{{ t.pick }}" style="min-height:40px;padding:8px 16px;background:{{ t.bg }};border:3px solid #3a1f1a;border-bottom:{{ t.bottom }};margin-bottom:-3px;position:relative;z-index:{{ t.z }};color:#2b1a1a;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;">{{ t.label }}</button>
+            </sc-for>
+          </div>
+          <div style="flex:1;min-height:0;overflow:auto;background:#fff3dc;border:3px solid #3a1f1a;padding:12px;display:flex;flex-direction:column;gap:12px;">
+            <sc-if value="{{ bagIsItems }}" hint-placeholder-val="{{ true }}">
+              <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;">
+                <sc-for list="{{ bagSlots }}" as="i" hint-placeholder-count="4">
+                  <button onClick="{{ i.pick }}" aria-label="{{ i.name }}" style="position:relative;aspect-ratio:1;padding:0;background:{{ i.bg }};border:3px solid {{ i.border }};box-shadow:inset 3px 3px 0 #e0c79a;font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;">
+                    <img src="{{ i.img }}" alt="" style="height:30px;width:auto;image-rendering:pixelated;">
+                    <span style="font-size:9px;color:#5c3415;font-weight:700;">{{ i.short }}</span>
+                    <span style="position:absolute;right:-3px;bottom:-3px;background:#3a1f1a;color:#ffe58a;font-size:10px;padding:1px 4px;">×{{ i.count }}</span>
+                  </button>
+                </sc-for>
+                <sc-for list="{{ emptySlots }}" as="e" hint-placeholder-count="4">
+                  <div style="aspect-ratio:1;background:#efdcb4;border:3px dashed #c9a46a;"></div>
+                </sc-for>
+              </div>
+              <sc-if value="{{ bagHasSel }}" hint-placeholder-val="{{ true }}">
+                <div style="background:#fffaf0;border:3px solid #3a1f1a;box-shadow:0 4px 0 #c9a46a;padding:10px;display:flex;align-items:center;gap:10px;">
+                  <div style="width:48px;height:48px;flex:0 0 auto;background:#f4e2c0;border:3px solid #3a1f1a;display:flex;align-items:center;justify-content:center;box-sizing:border-box;">
+                    <img src="{{ bagSelImg }}" alt="" style="height:34px;width:auto;image-rendering:pixelated;">
+                  </div>
+                  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;">
+                    <span style="font-size:12.5px;font-weight:700;color:#2b1a1a;">{{ bagSelName }} <span style="font-size:10px;color:#7a6a60;font-weight:400;">×{{ bagSelCount }}</span></span>
+                    <span style="font-size:10px;color:#7a6a60;line-height:1.6;">{{ bagSelDesc }}</span>
+                  </div>
+                  <button onClick="{{ bagUse }}" disabled="{{ bagSelEmpty }}" style="flex:0 0 auto;min-height:44px;padding:8px 10px;background:{{ bagUseBg }};border:3px solid #3a1f1a;box-shadow:0 4px 0 {{ bagUseShadow }};color:#2b1a1a;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;">사용하러 가기 ▶</button>
+                </div>
+              </sc-if>
+              <sc-if value="{{ bagNoSel }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size:10px;color:#7a5a3a;line-height:1.8;text-align:center;padding:6px;">아이템을 눌러 정보를 확인하세요</div>
+              </sc-if>
+            </sc-if>
+            <sc-if value="{{ bagIsMons }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;justify-content:space-between;font-size:10.5px;color:#5c3415;font-weight:700;"><span>함께하는 몬스터</span><span>필드 {{ fieldCountText }}</span></div>
+              <sc-for list="{{ bagMons }}" as="m" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:10px;background:{{ m.cardBg }};border:3px solid #3a1f1a;box-shadow:0 4px 0 #c9a46a;padding:8px 10px;">
+                  <div style="width:56px;height:56px;flex:0 0 auto;background-color:#cfeec0;background-image:repeating-conic-gradient(#c2e6b2 0 25%,#cfeec0 0 50%);background-size:12px 12px;border:3px solid #3a1f1a;display:flex;align-items:center;justify-content:center;padding:3px;box-sizing:border-box;">
+                    <img src="{{ m.img }}" alt="" style="max-width:100%;max-height:100%;image-rendering:pixelated;">
+                  </div>
+                  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;">
+                    <span style="font-size:12.5px;font-weight:700;color:#2b1a1a;">{{ m.name }} <span style="font-size:10px;color:#7a6a60;">Lv.{{ m.lv }}</span></span>
+                    <span style="display:flex;align-items:center;gap:5px;">
+                      <span style="font-size:8.5px;background:#3a1f1a;color:#ffe58a;padding:1px 4px;">EXP</span>
+                      <span style="flex:1;height:7px;background:#3a1f1a;padding:1px;"><span style="display:block;height:100%;width:{{ m.pct }};background:#5fc9e8;"></span></span>
+                    </span>
+                    <span style="align-self:flex-start;font-size:9.5px;color:#ffffff;background:{{ m.whereColor }};border:2px solid #3a1f1a;padding:1px 6px;">{{ m.where }} · {{ m.stage }}</span>
+                  </div>
+                  <button onClick="{{ m.act }}" style="min-width:62px;min-height:44px;padding:6px;background:{{ m.btnBg }};border:3px solid #3a1f1a;box-shadow:0 4px 0 {{ m.btnShadow }};color:#2b1a1a;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;">{{ m.btn }}</button>
+                </div>
+              </sc-for>
+            </sc-if>
+          </div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ---------- 오버레이: 몬스터 정보 (교감) ---------- -->
+    <sc-if value="{{ isMon }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:#0d0b16b3;z-index:20;display:flex;flex-direction:column;justify-content:flex-end;">
+      <div style="max-height:98%;overflow:auto;background:#fffaf0;border-top:4px solid #3a1f1a;box-sizing:border-box;display:flex;flex-direction:column;">
+        <div style="flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:8px 10px 8px 14px;background:{{ monColor }};border-bottom:4px solid #3a1f1a;">
+          <svg width="22" height="22" viewBox="0 0 16 16" style="shape-rendering:crispEdges;filter:drop-shadow(1.5px 0 0 #3a1f1a) drop-shadow(-1.5px 0 0 #3a1f1a) drop-shadow(0 1.5px 0 #3a1f1a) drop-shadow(0 -1.5px 0 #3a1f1a);"><path d="{{ monIc.a }}" fill="#fffaf0"></path><path d="{{ monIc.b }}" fill="#fffaf0"></path><path d="{{ monIc.c }}" fill="#fffaf0"></path></svg>
+          <span style="flex:1;font-size:17px;font-weight:700;color:#2b1a1a;">{{ monName }}</span>
+          <span style="font-size:12px;font-weight:700;background:#3a1f1a;color:#ffe58a;padding:4px 8px;">Lv.{{ monLv }}</span>
+          <button onClick="{{ closeOverlay }}" aria-label="닫기" style="width:40px;height:40px;background:#fffaf0;border:3px solid #3a1f1a;color:#3a1f1a;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="3.5" fill="none"></path></svg></button>
+        </div>
+
+        <div style="padding:10px 12px 14px;display:flex;flex-direction:column;gap:10px;">
+          <!-- 교감 무대 -->
+          <div ref="{{ stageRef }}" onMouseMove="{{ rubMove }}" onTouchMove="{{ rubTouch }}" onTouchStart="{{ rubTouch }}" onMouseLeave="{{ rubLeave }}" style="position:relative;height:250px;flex:0 0 auto;background:#8fd3f4;border:3px solid {{ stageBorder }};display:flex;align-items:flex-end;justify-content:center;overflow:hidden;cursor:{{ stageCursor }};touch-action:{{ stageTouch }};user-select:none;">
+            <div style="position:absolute;left:0;right:0;top:46%;height:10%;background:#b9e7f6;"></div>
+            <div style="position:absolute;left:0;right:0;bottom:0;height:30%;background-color:#86d06a;background-image:repeating-conic-gradient(#7cc560 0 25%,#86d06a 0 50%);background-size:20px 20px;border-top:3px solid #5fb158;"></div>
+            <div style="position:absolute;left:50%;bottom:14px;margin-left:-50px;width:100px;height:12px;background:#3a1f1a;opacity:{{ shadowOp }};"></div>
+            <div style="position:absolute;left:10px;right:10px;top:10px;background:#fffaf0;border:3px solid #3a1f1a;padding:7px 10px;font-size:11.5px;line-height:1.7;color:#2b1a1a;z-index:2;">{{ monLine }}<span style="position:absolute;left:50%;bottom:-9px;margin-left:-5px;width:10px;height:6px;background:#fffaf0;border:3px solid #3a1f1a;border-top:none;"></span></div>
+
+            <button onClick="{{ tapMon }}" aria-label="{{ tapAria }}" style="position:relative;margin-bottom:18px;padding:0;background:none;border:none;cursor:{{ monCursor }};pointer-events:{{ monPE }};transform:translateY({{ monJump }});transition:transform .16s steps(2);">
+              <sc-if value="{{ hasEmote }}" hint-placeholder-val="{{ true }}">
+                <span style="position:absolute;left:50%;bottom:calc(100% + 2px);transform:translateX(-50%);width:34px;height:30px;background:#fffaf0;border:3px solid #3a1f1a;display:flex;align-items:center;justify-content:center;box-sizing:border-box;">
+                  <svg width="18" height="18" viewBox="0 0 16 16" style="shape-rendering:crispEdges;"><path d="{{ emotePath }}" fill="{{ emoteColor }}"></path></svg>
+                  <span style="position:absolute;left:10px;bottom:-8px;width:8px;height:5px;background:#fffaf0;border:3px solid #3a1f1a;border-top:none;"></span>
+                </span>
+              </sc-if>
+              <img src="{{ monImg }}" alt="{{ monName }}" draggable="false" style="display:block;height:124px;width:auto;image-rendering:pixelated;transform-origin:50% 100%;transform:translateY({{ monBob }}) scale({{ squishX }},{{ squishY }});transition:transform .12s steps(2);pointer-events:none;">
+            </button>
+
+            <sc-if value="{{ ball }}" hint-placeholder-val="{{ false }}">
+              <svg width="26" height="26" viewBox="0 0 16 16" style="position:absolute;left:60%;top:42%;shape-rendering:crispEdges;filter:drop-shadow(1.5px 0 0 #3a1f1a) drop-shadow(-1.5px 0 0 #3a1f1a) drop-shadow(0 1.5px 0 #3a1f1a) drop-shadow(0 -1.5px 0 #3a1f1a);"><path d="M5 1h6v1h2v2h1v8h-1v2h-2v1H5v-1H3v-2H2V4h1V2h2z" fill="#ffffff"></path><path d="M5 1h6v1h2v2h1v3H2V4h1V2h2z" fill="#ff8a4c"></path><path d="M2 7h12v2H2z" fill="#3a1f1a"></path></svg>
+            </sc-if>
+
+            <sc-for list="{{ heartPops }}" as="p" hint-placeholder-count="0">
+              <svg width="20" height="20" viewBox="0 0 16 16" style="position:absolute;left:{{ p.x }};top:{{ p.y }};opacity:{{ p.op }};transition:top .8s linear,opacity .8s linear;shape-rendering:crispEdges;pointer-events:none;filter:drop-shadow(1.5px 0 0 #3a1f1a) drop-shadow(-1.5px 0 0 #3a1f1a) drop-shadow(0 1.5px 0 #3a1f1a) drop-shadow(0 -1.5px 0 #3a1f1a);"><path d="M2 3h4v1h4V3h4v1h1v5h-1v1h-1v1h-1v1h-1v1h-1v1H6v-1H5v-1H4v-1H3v-1H2V9H1V4h1z" fill="#ff6b8a"></path></svg>
+            </sc-for>
+            <sc-for list="{{ floatTexts }}" as="f" hint-placeholder-count="0">
+              <span style="position:absolute;left:{{ f.x }};top:{{ f.y }};opacity:{{ f.op }};transition:top 1s linear,opacity 1s linear;font-size:13px;font-weight:700;color:{{ f.color }};text-shadow:2px 0 0 #fffaf0,-2px 0 0 #fffaf0,0 2px 0 #fffaf0,0 -2px 0 #fffaf0;pointer-events:none;white-space:nowrap;z-index:3;">{{ f.text }}</span>
+            </sc-for>
+
+            <sc-if value="{{ petMode }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;left:10px;bottom:8px;width:150px;display:flex;flex-direction:column;gap:4px;pointer-events:none;">
+                <span style="font-size:9.5px;font-weight:700;color:#ffffff;text-shadow:1px 0 0 #3a1f1a,-1px 0 0 #3a1f1a,0 1px 0 #3a1f1a,0 -1px 0 #3a1f1a;">문질러서 쓰다듬기 · {{ rubPct }}</span>
+                <span style="display:block;height:10px;background:#3a1f1a;padding:1px;"><span style="display:block;height:100%;width:{{ rubPct }};background:#ff6b8a;"></span></span>
+              </div>
+              <svg width="40" height="40" viewBox="0 0 16 16" style="position:absolute;left:{{ handX }};top:{{ handY }};transform:rotate({{ handTilt }});shape-rendering:crispEdges;pointer-events:none;z-index:3;filter:drop-shadow(2px 0 0 #3a1f1a) drop-shadow(-2px 0 0 #3a1f1a) drop-shadow(0 2px 0 #3a1f1a) drop-shadow(0 -2px 0 #3a1f1a);"><path d="M4 2h2v6H4z M6 1h2v7H6z M8 2h2v6H8z M10 3h2v6h-2z M3 7h10v5h-1v2H5v-1H4v-1H3z M1 6h2v1h1v3H3V9H2V8H1z" fill="#ffe0c2"></path><path d="M5 11h7v1H5z M5 13h7v1H5z" fill="#e0a878"></path></svg>
+            </sc-if>
+            <sc-if value="{{ tapHint }}" hint-placeholder-val="{{ true }}">
+              <span style="position:absolute;right:8px;bottom:8px;font-size:9.5px;font-weight:700;color:#ffffff;text-shadow:1px 0 0 #3a1f1a,-1px 0 0 #3a1f1a,0 1px 0 #3a1f1a,0 -1px 0 #3a1f1a;pointer-events:none;">톡 눌러보세요!</span>
+            </sc-if>
+          </div>
+
+          <!-- 기분 / 호감도 -->
+          <div style="display:flex;align-items:center;gap:8px;background:#f4f1e6;border:3px solid #3a1f1a;padding:7px 10px;">
+            <span style="width:26px;height:26px;flex:0 0 auto;background:#fffaf0;border:2px solid #3a1f1a;display:flex;align-items:center;justify-content:center;"><svg width="16" height="16" viewBox="0 0 16 16" style="shape-rendering:crispEdges;"><path d="{{ moodPath }}" fill="{{ moodColor }}"></path></svg></span>
+            <span style="font-size:11px;font-weight:700;color:#2b1a1a;flex:1;">{{ moodText }}</span>
+            <span style="display:flex;gap:1px;">
+              <sc-for list="{{ hearts }}" as="h" hint-placeholder-count="5">
+                <svg width="15" height="15" viewBox="0 0 16 16" style="shape-rendering:crispEdges;filter:drop-shadow(1px 0 0 #3a1f1a) drop-shadow(-1px 0 0 #3a1f1a) drop-shadow(0 1px 0 #3a1f1a) drop-shadow(0 -1px 0 #3a1f1a);"><path d="M2 3h4v1h4V3h4v1h1v5h-1v1h-1v1h-1v1h-1v1h-1v1H6v-1H5v-1H4v-1H3v-1H2V9H1V4h1z" fill="{{ h.fill }}"></path></svg>
+              </sc-for>
+            </span>
+          </div>
+          <div style="font-size:9.5px;color:{{ affTextColor }};font-weight:700;text-align:right;margin-top:-6px;">{{ affText }}</div>
+
+          <!-- 교감 액션 -->
+          <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;">
+            <sc-for list="{{ actions }}" as="a" hint-placeholder-count="4">
+              <button onClick="{{ a.go }}" style="position:relative;min-height:74px;padding:6px 2px;background:{{ a.bg }};border:3px solid #3a1f1a;box-shadow:{{ a.shadow }};transform:translateY({{ a.lift }});font-family:inherit;font-size:10.5px;font-weight:700;color:#2b1a1a;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;">
+                <svg width="30" height="30" viewBox="0 0 16 16" style="shape-rendering:crispEdges;filter:drop-shadow(1.5px 0 0 #3a1f1a) drop-shadow(-1.5px 0 0 #3a1f1a) drop-shadow(0 1.5px 0 #3a1f1a) drop-shadow(0 -1.5px 0 #3a1f1a);"><path d="{{ a.p1 }}" fill="{{ a.c1 }}"></path><path d="{{ a.p2 }}" fill="{{ a.c2 }}"></path><path d="{{ a.p3 }}" fill="{{ a.c3 }}"></path></svg>
+                <span>{{ a.label }}</span>
+                <span style="font-size:8.5px;color:#7a6a60;font-weight:400;">{{ a.sub }}</span>
+                <sc-if value="{{ a.done }}" hint-placeholder-val="{{ false }}">
+                  <span style="position:absolute;right:-6px;top:-6px;width:20px;height:20px;background:#7fd36b;border:3px solid #3a1f1a;display:flex;align-items:center;justify-content:center;box-sizing:border-box;"><svg width="10" height="10" viewBox="0 0 16 16"><path d="M2 8l4 4 8-8" stroke="#2b1a1a" stroke-width="3.5" fill="none"></path></svg></span>
+                </sc-if>
+              </button>
+            </sc-for>
+          </div>
+          <sc-if value="{{ feedOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="background:#f4e2c0;border:3px solid #3a1f1a;padding:8px;display:flex;flex-direction:column;gap:6px;">
+              <span style="font-size:10px;font-weight:700;color:#5c3415;">어떤 간식을 줄까? (경험치 물약)</span>
+              <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;">
+                <sc-for list="{{ feedItems }}" as="i" hint-placeholder-count="3">
+                  <button onClick="{{ i.use }}" disabled="{{ i.cant }}" style="min-height:66px;padding:5px 2px;background:{{ i.bg }};border:3px solid #3a1f1a;box-shadow:0 3px 0 #c9a46a;color:#2b1a1a;font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;opacity:{{ i.op }};">
+                    <img src="{{ i.img }}" alt="" style="height:22px;width:auto;image-rendering:pixelated;">
+                    <span>{{ i.short }} ×{{ i.count }}</span>
+                    <span style="font-size:9px;color:#2f7fa0;">+{{ i.exp }} EXP</span>
+                  </button>
+                </sc-for>
+              </div>
+              <button onClick="{{ openShop }}" style="background:none;border:none;color:#d94a3d;font-family:inherit;font-size:10.5px;font-weight:700;cursor:pointer;text-decoration:underline;min-height:28px;">간식이 부족해요? 상점 가기</button>
+            </div>
+          </sc-if>
+
+          <!-- 상태 요약 -->
+          <div style="background:#f4f1e6;border:3px solid #3a1f1a;padding:8px 10px;display:flex;flex-direction:column;gap:7px;">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+              <span style="display:flex;align-items:center;gap:4px;background:{{ monColor }};border:2px solid #3a1f1a;padding:2px 7px 2px 4px;font-size:10px;font-weight:700;color:#2b1a1a;"><svg width="12" height="12" viewBox="0 0 16 16" style="shape-rendering:crispEdges;"><path d="{{ monIc.a }}" fill="{{ monIc.ca }}"></path><path d="{{ monIc.b }}" fill="{{ monIc.cb }}"></path><path d="{{ monIc.c }}" fill="{{ monIc.cc }}"></path></svg>{{ monType }}</span>
+              <span style="font-size:10px;font-weight:700;color:#2b1a1a;background:#fffaf0;border:2px solid #3a1f1a;padding:2px 7px;">{{ monStage }}</span>
+              <span style="display:flex;gap:1px;align-items:center;">
+                <sc-for list="{{ monStars }}" as="st" hint-placeholder-count="3">
+                  <svg width="12" height="12" viewBox="0 0 16 16" style="shape-rendering:crispEdges;"><path d="M7 0h2v4h5v2h-2v2h1v6h-2v-2H5v2H3V8h1V6H2V4h5z" fill="{{ st.fill }}"></path></svg>
+                </sc-for>
+              </span>
+              <span style="font-size:9.5px;color:#7a6a60;">{{ monRarity }}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:7px;">
+              <span style="font-size:9px;font-weight:700;background:#3a1f1a;color:#ffe58a;padding:2px 5px;">EXP</span>
+              <span style="flex:1;height:11px;background:#3a1f1a;padding:2px;box-sizing:border-box;"><span style="display:block;height:100%;width:{{ monPct }};background:#5fc9e8;"></span></span>
+              <span style="font-size:10px;color:#2b1a1a;font-weight:700;">{{ monExp }}/125</span>
+            </div>
+            <div style="font-size:9.5px;color:#7a6a60;text-align:right;">{{ monNext }}</div>
+          </div>
+
+          <div style="display:flex;gap:8px;">
+            <button onClick="{{ monToBag }}" style="flex:1;min-height:42px;padding:8px;background:#f4e2c0;border:3px solid #3a1f1a;box-shadow:0 4px 0 #c9a46a;color:#2b1a1a;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;">가방에 넣기</button>
+            <button onClick="{{ monPartner }}" style="flex:1;min-height:42px;padding:8px;background:#cfe8ff;border:3px solid #3a1f1a;box-shadow:0 4px 0 #7aa6c9;color:#2b1a1a;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;">{{ partnerText }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ---------- 구매 수량 선택 ---------- -->
+    <sc-if value="{{ hasQtyPop }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:#0d0b16a6;z-index:34;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;">
+      <div style="position:relative;width:100%;max-width:290px;background:#fffaf0;border:4px solid #0d0b16;box-shadow:6px 6px 0 #0d0b16;padding:24px 16px 16px;display:flex;flex-direction:column;align-items:center;gap:10px;box-sizing:border-box;">
+        <div style="position:absolute;left:50%;top:-16px;transform:translateX(-50%);background:#8a5a2b;border:3px solid #0d0b16;padding:3px 16px;font-size:13px;font-weight:700;color:#fff3dc;white-space:nowrap;">몇 개 살까?</div>
+        <div style="display:flex;align-items:center;gap:10px;width:100%;">
+          <div style="width:56px;height:56px;flex:0 0 auto;background:#f4f1e6;border:3px solid #0d0b16;display:flex;align-items:center;justify-content:center;box-sizing:border-box;">
+            <img src="{{ qtyImg }}" alt="" style="height:38px;width:auto;image-rendering:pixelated;">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <span style="font-size:13px;font-weight:700;color:#2b1a1a;">{{ qtyName }}</span>
+            <span style="font-size:10px;color:#7a6a60;">개당 {{ qtyUnit }}G · 지금 보유 {{ qtyOwned }}개</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;width:100%;">
+          <button onClick="{{ qtyDec }}" aria-label="하나 줄이기" style="width:46px;height:46px;flex:0 0 auto;background:#cfe8ff;border:3px solid #0d0b16;box-shadow:0 4px 0 #7aa6c9;font-family:inherit;font-size:22px;font-weight:700;color:#2b1a1a;cursor:pointer;">−</button>
+          <div style="flex:1;height:46px;background:#2b1a1a;border:3px solid #0d0b16;display:flex;align-items:center;justify-content:center;box-sizing:border-box;font-size:22px;font-weight:700;color:#ffe58a;">{{ qtyN }}</div>
+          <button onClick="{{ qtyInc }}" aria-label="하나 늘리기" style="width:46px;height:46px;flex:0 0 auto;background:#ffd24d;border:3px solid #0d0b16;box-shadow:0 4px 0 #b27a14;font-family:inherit;font-size:22px;font-weight:700;color:#2b1a1a;cursor:pointer;">+</button>
+        </div>
+        <div style="display:flex;gap:6px;width:100%;">
+          <sc-for list="{{ qtyQuick }}" as="q" hint-placeholder-count="3">
+            <button onClick="{{ q.pick }}" style="flex:1;min-height:34px;background:{{ q.bg }};border:3px solid #0d0b16;font-family:inherit;font-size:11px;font-weight:700;color:#2b1a1a;cursor:pointer;">{{ q.label }}</button>
+          </sc-for>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;width:100%;font-size:11px;color:#7a6a60;">
+          <span>합계</span>
+          <span style="display:flex;align-items:center;gap:5px;font-size:15px;font-weight:700;color:{{ qtyTotalColor }};"><svg width="14" height="14" viewBox="0 0 16 16" style="shape-rendering:crispEdges;"><path d="M5 1h6v1h2v2h1v8h-1v2h-2v1H5v-1H3v-2H2V4h1V2h2z" fill="#f0b23c"></path><path d="M7 4h2v8H7z" fill="#b27a14"></path></svg>{{ qtyTotal }}</span>
+        </div>
+        <div style="display:flex;gap:8px;width:100%;margin-top:2px;">
+          <button onClick="{{ closeQty }}" style="flex:0 0 auto;min-height:46px;padding:8px 14px;background:#f4ead2;border:3px solid #0d0b16;box-shadow:0 4px 0 #8a7a6a;font-family:inherit;font-size:12px;font-weight:700;color:#2b1a1a;cursor:pointer;">취소</button>
+          <button onClick="{{ qtyBuy }}" disabled="{{ qtyCant }}" style="flex:1;min-height:46px;padding:8px;background:{{ qtyBuyBg }};border:3px solid #0d0b16;box-shadow:0 4px 0 {{ qtyBuyShadow }};font-family:inherit;font-size:13px;font-weight:700;color:#12101f;cursor:pointer;">{{ qtyBuyLabel }}</button>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ---------- 구매 완료 팝업 ---------- -->
+    <sc-if value="{{ hasBuyPop }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:#0d0b16a6;z-index:35;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;">
+      <div style="position:relative;width:100%;max-width:280px;background:#fffaf0;border:4px solid #0d0b16;box-shadow:6px 6px 0 #0d0b16;padding:24px 16px 16px;display:flex;flex-direction:column;align-items:center;gap:10px;box-sizing:border-box;">
+        <div style="position:absolute;left:50%;top:-16px;transform:translateX(-50%);background:#7fd36b;border:3px solid #0d0b16;padding:3px 16px;font-size:13px;font-weight:700;color:#2b1a1a;white-space:nowrap;">구매 완료!</div>
+        <div style="width:84px;height:84px;background:#f4f1e6;background-image:repeating-conic-gradient(#ebe4d2 0 25%,#f4f1e6 0 50%);background-size:12px 12px;border:3px solid #0d0b16;display:flex;align-items:center;justify-content:center;box-sizing:border-box;">
+          <img src="{{ buyPopImg }}" alt="" style="height:56px;width:auto;image-rendering:pixelated;transform:translateY({{ bobY }});">
+        </div>
+        <div style="font-size:14px;font-weight:700;color:#2b1a1a;">{{ buyPopName }} ×{{ buyPopN }}</div>
+        <div style="font-size:11px;color:#7a6a60;text-align:center;line-height:1.7;">가방에 넣었어요 · 보유 {{ buyPopCount }}개</div>
+        <div style="display:flex;align-items:center;gap:5px;background:#2b1a1a;padding:4px 10px;font-size:13px;font-weight:700;color:#ffe58a;">
+          <svg width="14" height="14" viewBox="0 0 16 16" style="shape-rendering:crispEdges;"><path d="M5 1h6v1h2v2h1v8h-1v2h-2v1H5v-1H3v-2H2V4h1V2h2z" fill="#f0b23c"></path><path d="M7 4h2v8H7z" fill="#b27a14"></path></svg>-{{ buyPopPrice }}
+        </div>
+        <div style="display:flex;gap:8px;width:100%;margin-top:4px;">
+          <button onClick="{{ buyPopUse }}" style="flex:1;min-height:44px;padding:8px;background:#cfe8ff;border:3px solid #0d0b16;box-shadow:0 4px 0 #7aa6c9;font-family:inherit;font-size:11.5px;font-weight:700;color:#2b1a1a;cursor:pointer;">{{ buyPopUseLabel }}</button>
+          <button onClick="{{ closeBuyPop }}" style="flex:1;min-height:44px;padding:8px;background:#f0b23c;border:3px solid #0d0b16;box-shadow:0 4px 0 #8a5a1a;font-family:inherit;font-size:12px;font-weight:700;color:#12101f;cursor:pointer;">확인</button>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- 토스트 -->
+    <sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:40;background:#2b1a1a;color:#ffe58a;border:3px solid #0d0b16;box-shadow:4px 4px 0 #0d0b1688;padding:8px 14px;font-size:12.5px;font-weight:700;white-space:nowrap;"><span style="display:flex;align-items:center;gap:6px;"><sc-if value="{{ toastCoin }}" hint-placeholder-val="{{ false }}"><svg width="18" height="18" viewBox="0 0 16 16" style="flex:0 0 auto;shape-rendering:crispEdges;"><path d="M5 1h6v1h2v2h1v8h-1v2h-2v1H5v-1H3v-2H2V4h1V2h2z" fill="#f0b23c"></path><path d="M7 4h2v8H7z" fill="#b27a14"></path><path d="M5 3h2v1H5z" fill="#ffe7a8"></path></svg></sc-if>{{ toastText }}</span></div>
+    </sc-if>
+  </div>
+
+  <!-- 하단 탭 -->
+  <nav style="flex:0 0 auto;display:flex;background:#0f0d1c;border-top:3px solid #2b2545;">
+    <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="5">
+      <button onClick="{{ n.pick }}" aria-label="{{ n.label }}" style="flex:1;min-height:62px;padding:8px 2px 10px;background:none;border:none;border-top:3px solid {{ n.mark }};margin-top:-3px;color:{{ n.color }};font-family:inherit;font-size:10.5px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">
+        <svg width="20" height="20" viewBox="0 0 16 16" style="shape-rendering:crispEdges;"><path d="{{ n.icon }}" fill="currentColor"></path></svg>
+        <span>{{ n.label }}</span>
+      </button>
+    </sc-for>
+  </nav>
+</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"start":{"editor":"enum","options":["intro","cats","habit","goalintro","home","chat","stats","dex","goals"],"default":"intro"},"overlay":{"editor":"enum","options":["none","shop","bag","mon"],"default":"none"},"$preview":{"width":390,"height":844}}'>
+const IMG = {
+  wolf: 'assets/images/monsters/wolf.png',
+  spark: 'assets/images/monsters/spark.png',
+  chick: 'assets/images/monsters/chick.png',
+  sprout: 'assets/images/monsters/sprout.png',
+  moon: 'assets/images/monsters/moon.png'
+};
+const CATS = [
+  {id:'ex', name:'운동', short:'운동', type:'불꽃', glyph:'炎', color:'#ff7a4d', measures:[['운동 시간','분',30],['운동 횟수','회',3],['자가진단','점',4]]},
+  {id:'st', name:'공부/학습', short:'공부', type:'번개', glyph:'雷', color:'#ffd24d', measures:[['공부 시간','분',60],['학습량','p',20],['자가진단','점',4]]},
+  {id:'fd', name:'식습관/건강', short:'식습관', type:'풀', glyph:'草', color:'#7fd36b', measures:[['물 섭취량','L',2],['준수한 끼니','끼',3],['영양제/약 섭취','OX',1],['야식 안 하기','OX',1],['자가진단','점',4]]},
+  {id:'md', name:'명상/마음챙김', short:'명상', type:'물', glyph:'水', color:'#5fc9e8', measures:[['명상 시간','분',10],['일기 쓰기','OX',1],['독서','OX',1],['자가진단','점',4]]},
+  {id:'sl', name:'수면', short:'수면', type:'달빛', glyph:'月', color:'#a99bf5', measures:[['수면 시간','h',7],['미라클 모닝','OX',1]]},
+  {id:'mn', name:'절약/재테크', short:'절약', type:'금속', glyph:'金', color:'#c9c6d8', measures:[['불필요한 소비 안 하기','OX',1],['저축액','원',10000]]}
+];
+const CAT = {}; CATS.forEach(c => { CAT[c.id] = c; });
+// 카테고리 픽셀 아이콘 (16칸 격자 · a=본색, b=그늘/속, c=하이라이트)
+const CI = {
+  ex: {a:'M7 1h2v2h1v1h1V3h1v2h1v2h1v5h-1v2h-1v1H4v-1H3v-2H2V7h1V5h1v1h1V4h1V2h1z', ca:'#ff7a4d',
+       b:'M7 7h2v1h1v1h1v3h-1v1H6v-1H5V9h1V8h1z', cb:'#ffd24d', c:'M7 10h2v2H7z', cc:'#fff6c8'},
+  st: {a:'M7 1h6v1H7z M6 2h6v1H6z M6 3h5v1H6z M5 4h5v1H5z M4 5h9v1H4z M6 6h6v1H6z M7 7h4v1H7z M7 8h3v1H7z M6 9h3v1H6z M6 10h2v1H6z M5 11h2v1H5z M5 12h1v2H5z', ca:'#ffd24d',
+       b:'M10 5h3v1h-3z M9 6h3v1H9z M8 8h2v1H8z', cb:'#e09a1a', c:'M7 2h2v1H7z M6 4h2v1H6z', cc:'#fff6c8'},
+  fd: {a:'M9 2h5v1H9z M7 3h7v1H7z M5 4h9v2H5z M4 6h9v2H4z M4 8h8v1H4z M4 9h7v1H4z M5 10h5v1H5z M3 11h2v1H3z M2 12h2v1H2z M1 13h2v1H1z', ca:'#7fd36b',
+       b:'M12 4h1v1h-1z M11 5h1v1h-1z M10 6h1v1h-1z M9 7h1v1H9z M8 8h1v1H8z M7 9h1v1H7z M6 10h1v1H6z', cb:'#3f8f3a', c:'M6 5h2v1H6z M5 6h1v2H5z', cc:'#d4f5b8'},
+  md: {a:'M7 1h2v2h1v2h1v1h1v2h1v4h-1v2h-1v1H5v-1H4v-2H3V8h1V6h1V5h1V3h1z', ca:'#5fc9e8',
+       b:'M11 10h1v2h-1z M9 13h2v1H9z', cb:'#2f8fb0', c:'M5 8h2v1H5z M5 9h1v2H5z', cc:'#e0f8ff'},
+  sl: {a:'M5 1h5v1H5z M3 2h5v1H3z M2 3h4v1H2z M1 4h4v2H1z M1 6h3v4H1z M1 10h4v2H1z M2 12h4v1H2z M3 13h5v1H3z M5 14h5v1H5z', ca:'#a99bf5',
+       b:'M12 5h1v1h-1z M11 6h3v1h-3z M12 7h1v1h-1z', cb:'#ffe58a', c:'M3 4h1v2H3z M2 6h1v3H2z', cc:'#e8e2ff'},
+  mn: {a:'M5 1h6v1h2v2h1v8h-1v2h-2v1H5v-1H3v-2H2V4h1V2h2z', ca:'#f0b23c',
+       b:'M6 4h4v1h1v6h-1v1H6v-1H5V5h1z', cb:'#b27a14', c:'M7 6h2v4H7z M4 3h2v1H4z', cc:'#ffe7a8'}
+};
+const SPECIES = [
+  {id:'wolf', cat:'ex', name:'잿불 늑대', rarity:'희귀', unlock:1, h:76, face:'left', lines:{
+    low:['…흥. 뭘 봐?','네가 달리는 건 아직 못 봤는데.','가까이 오지 마. 뜨거우니까.'],
+    mid:['오늘도 뛸 거지? 따라갈게.','땀 냄새, 나쁘지 않아.','어제보다 발소리가 가벼워졌네.'],
+    high:['네가 달리면 내 불꽃도 커져!','같이라면 어디까지든 달릴 수 있어.','…쓰다듬어 줘도 돼. 특별히.']}},
+  {id:'spark', cat:'st', name:'찌릿 쥐', rarity:'흔함', unlock:1, h:72, face:'left', lines:{
+    low:['찌릿…? 누구세요?','책은… 펴긴 했어?','(볼이 조금 찌릿거린다)'],
+    mid:['찌릿! 오늘 공부했어?','책장 넘기는 소리 좋아.','집중하면 볼이 찌릿찌릿해져!'],
+    high:['집중하는 네 옆이 제일 좋아!','우리 오늘도 찌릿하게 해보자!','너 오면 꼬리가 저절로 흔들려!']}},
+  {id:'chick', cat:'st', name:'번쩍 병아리', rarity:'보통', unlock:3, h:70, face:'front', lines:{
+    low:['삐약…?','(경계 중)','…번쩍?'],
+    mid:['삐약! 번쩍!','오늘 몇 페이지 읽었어?','머리 위 번개는 집중력의 증거야.'],
+    high:['너 덕분에 번개가 밝아졌어!','삐약삐약! 최고야!','계속 옆에 있을래!']}},
+  {id:'sprout', cat:'fd', name:'새싹냥', rarity:'흔함', unlock:1, h:68, face:'front', lines:{
+    low:['냥.','물… 마셨어?','(잎사귀를 숨긴다)'],
+    mid:['야식 참았지? 기특해.','잎사귀가 반짝반짝, 냥.','오늘 물 몇 잔 마셨어?'],
+    high:['건강한 네가 좋아, 냥!','오늘도 같이 잘 먹자, 냥~','네 옆이면 잎이 쑥쑥 자라!']}},
+  {id:'moon', cat:'sl', name:'그믐 꼬마', rarity:'보통', unlock:1, h:72, face:'front', lines:{
+    low:['…졸려.','…','(하품)'],
+    mid:['일찍 자면 달이 커져.','어젯밤 푹 잤어?','오늘은 몇 시에 잘 거야?'],
+    high:['네 꿈속에 놀러 갈게.','오늘 밤도 같이 자자.','네 옆이 제일 포근해.']}}
+];
+const TIER_NAME = {low:'서먹한', mid:'친해진', high:'단짝'};
+const TIER_COLOR = {low:'#8c7fc0', mid:'#5fc9e8', high:'#ff6b8a'};
+const PET_GAIN = 2;
+const BALL_IMG = 'assets/images/items/seongsil_ball.png';
+const SLOT_STEPS = [5, 10, 15]; // 도감 발견 수 → 카테고리 슬롯 +1 (기본 3, 최대 6)
+const EMO = {
+  heart: ['M2 3h4v1h4V3h4v1h1v5h-1v1h-1v1h-1v1h-1v1h-1v1H6v-1H5v-1H4v-1H3v-1H2V9H1V4h1z', '#ff6b8a'],
+  note: ['M8 2h5v2h-3v8H9v1H6v-1H5v-2h1V9h2V2z', '#6d5ec4'],
+  sweat: ['M7 1h2v2h1v2h1v1h1v2h1v4h-1v2h-1v1H5v-1H4v-2H3V8h1V6h1V5h1V3h1z', '#5fc9e8'],
+  spark: ['M7 1h2v4h2v2h4v2h-4v2H9v4H7v-4H5V9H1V7h4V5h2z', '#f0b23c'],
+  dots: ['M2 7h3v3H2z M7 7h3v3H7z M12 7h3v3h-3z', '#7a6a60']
+};
+function tierOf(a){ return a >= 7 ? 'high' : (a >= 4 ? 'mid' : 'low'); }
+const DESC = {
+  wolf: '아침마다 달리는 사람 곁에 나타난다. 꼬리 끝 불꽃은 주인의 운동량만큼 커진다.',
+  spark: '책장 넘기는 소리를 좋아한다. 집중할수록 볼에서 작은 전기가 톡톡 튄다.',
+  chick: '머리 위 번개 깃털은 집중력의 증거. 오래 공부한 날엔 밤새 반짝인다.',
+  sprout: '물을 잘 마시는 사람 곁에서 잎사귀가 윤기 난다. 야식 냄새를 아주 싫어한다.',
+  moon: '일찍 잠드는 사람의 꿈속을 산책한다. 낮에는 대부분 꾸벅꾸벅 졸고 있다.'
+};
+const SP = {}; SPECIES.forEach(s => { SP[s.id] = s; s.desc = DESC[s.id]; });
+const ITEMS = [
+  {id:'s', img:'assets/images/items/potion_small.png', name:'하급 경험치 물약', short:'하급', price:20, exp:20, color:'#7fd36b', eff:'1.00'},
+  {id:'m', img:'assets/images/items/potion_medium.png', name:'중급 경험치 물약', short:'중급', price:90, exp:100, color:'#5fc9e8', eff:'1.11'},
+  {id:'l', img:'assets/images/items/potion_large.png', name:'상급 경험치 물약', short:'상급', price:400, exp:500, color:'#f0b23c', eff:'1.25'}
+];
+const PERIODS = [['1주일','×1.2'],['1개월','×1.5'],['3개월','×2.0']];
+const PRESETS = {
+  ex: [['아침 러닝',0,30],['스쿼트',1,30],['홈트 한 판',0,20]],
+  st: [['전공 공부',0,60],['문제집 풀기',1,20],['오늘 복습',2,4]],
+  fd: [['물 2L 마시기',0,2],['세 끼 챙겨 먹기',1,3],['영양제 먹기',2,1],['야식 참기',3,1]],
+  md: [['10분 명상',0,10],['감사 일기',1,1],['자기 전 독서',2,1]],
+  sl: [['7시간 자기',0,7],['6시 기상',1,1]],
+  mn: [['충동구매 안 하기',0,1],['하루 저축',1,10000]]
+};
+const STEP = {'분':5, '회':1, '점':1, 'L':0.5, 'p':5, '끼':1, 'h':0.5, '원':5000};
+const STARTER = {ex:'wolf', st:'spark', fd:'sprout', sl:'moon', md:null, mn:null};
+const CHESTS = [['#a8673a','#c98a4b','#8a5226'], ['#8f8ba8','#c9c6d8','#6b6890'], ['#e2574c','#ff8a6a','#ffd24d']];
+const INTRO = [
+  '어서 오게! 나는 몬스터의 습성을 연구하는 대림대 박사라네.',
+  "이 세계의 몬스터들은 사람의 '성실함'에 반응해서 모습을 드러낸다네.",
+  '매일 습관을 지키면 성실도가 쌓이고, 골드와 새로운 몬스터를 만날 수 있지.',
+  '자, 먼저 어떤 길을 걸을지, 어떤 습관을 지킬지 정해보겠나?'
+];
+const SEED_HABITS = [
+  {id:'h1', name:'아침 러닝', cat:'ex', m:0, target:30, period:1},
+  {id:'h2', name:'전공 공부', cat:'st', m:0, target:60, period:2},
+  {id:'h3', name:'물 2L 마시기', cat:'fd', m:0, target:2, period:0}
+];
+const SEED_MONS = [
+  {uid:'m1', sp:'wolf', lv:7, exp:60, aff:4, where:'field'},
+  {uid:'m2', sp:'spark', lv:4, exp:90, aff:8, where:'field'},
+  {uid:'m3', sp:'sprout', lv:2, exp:30, aff:2, where:'field'},
+  {uid:'m4', sp:'moon', lv:1, exp:20, aff:3, where:'bag'}
+];
+const SEED_GOALS = {
+  weekly: [
+    {id:'w1', t:'주 3회 러닝', d:'월·수·금 아침, 30분 이상', done:true},
+    {id:'w2', t:'전공 2챕터 끝내기', d:'자료구조 5–6장, 연습문제까지', done:false}
+  ],
+  monthly: [
+    {id:'mo1', t:'책 2권 완독', d:'10월 안에 소설 1권 + 에세이 1권', done:false}
+  ]
+};
+const HIST = [['일',42],['월',55],['화',30],['수',61],['목',48],['금',52]];
+const FILL_UNLOCK = [2,4,5,6,8,10];
+const ICON = {
+  home: 'M7 1h2v1h1v1h1v1h1v1h1v1h1v2h-1v6H9v-4H7v4H3V8H2V6h1V5h1V4h1V3h1V2h1z',
+  chat: 'M1 2h14v9H8v1H7v1H6v1H4v-3H1z',
+  stats: 'M1 13h14v2H1z M2 8h3v4H2z M7 4h3v8H7z M12 1h3v11h-3z',
+  dex: 'M1 2h6v1h2V2h6v12H9v1H7v-1H1z M3 4v8h4V4z M9 4v8h4V4z',
+  goals: 'M1 2h3v3H1z M6 2h9v2H6z M1 7h3v3H1z M6 7h9v2H6z M1 12h3v3H1z M6 12h9v2H6z'
+};
+
+function catLevel(pts){
+  let lv = 1, need = 10, cur = pts || 0;
+  while (cur >= need) { cur -= need; lv += 1; need = 10 * lv; }
+  return {lv: lv, cur: cur, need: need};
+}
+function stageOf(lv){ return lv >= 20 ? '최종형' : (lv >= 10 ? '1차 진화' : '기본형'); }
+function unitOf(h){ return CAT[h.cat].measures[h.m][1]; }
+function scoreOf(h, v){
+  const u = unitOf(h);
+  if (u === 'OX') return v ? 20 : 0;
+  if (!v || v <= 0) return 0;
+  const r = v / h.target;
+  return r >= 1 ? Math.min(25, 20 + Math.round((r - 1) * 10)) : Math.round(20 * r);
+}
+function totalOf(rec, habits){
+  let t = 0;
+  habits.slice(0, 3).forEach(h => { if (rec[h.id] !== undefined) t += scoreOf(h, rec[h.id]); });
+  return t;
+}
+function mixHex(a, b, t){
+  const p = h => [1,3,5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const A = p(a), B = p(b);
+  return '#' + A.map((v, i) => Math.round(v * (1 - t) + B[i] * t).toString(16).padStart(2, '0')).join('');
+}
+function fmtNum(v){ return String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+class Component extends DCLogic {
+  state = this.makeState();
+
+  makeState(){
+    const p = this.props || {};
+    const start = p.start || 'intro';
+    const ov = p.overlay || 'none';
+    const inApp = ['home','chat','stats','dex','goals'].indexOf(start) >= 0;
+    const s = {
+      phase: inApp ? 'app' : start,
+      line: 0, typed: '', tick: 0,
+      picked: start === 'intro' || start === 'cats' ? [] : ['ex','st','fd'],
+      habits: inApp || start === 'goalintro' ? SEED_HABITS.map(h => ({...h})) : (start === 'habit' ? [SEED_HABITS[0]].map(h => ({...h})) : []),
+      draft: {name:'', cat: start === 'habit' ? 'st' : null, m:0, target: start === 'habit' ? '60' : '', period:1},
+      tab: inApp ? start : 'home',
+      overlay: inApp && ov !== 'none' ? ov : null,
+      selMon: ov === 'mon' ? 'm1' : null, feedOpen: ov === 'mon', monLine: SP.wolf.lines.mid[0],
+      bagTab: 'items', sheet: false, sheetPage: 0,
+      gold: 1240, balls: 1, ballsUsed: 0, inv: {s:3, m:1, l:0}, enc: 3,
+      mons: SEED_MONS.map(m => ({...m})), field: {},
+      catPts: {ex:64, st:38, fd:21, md:0, sl:0, mn:0},
+      rec: {}, rewarded: {},
+      chatMon: 'm2', msgs: [], step: 'idle', hIdx: 0, num: '', encRes: null,
+      dexCat: 'ex',
+      goals: inApp ? {weekly: SEED_GOALS.weekly.map(g => ({...g})), monthly: SEED_GOALS.monthly.map(g => ({...g}))} : {weekly: [], monthly: []},
+      goalIn: {weekly: '', monthly: ''},
+      extraSlot: false, gdraft: null, toast: null,
+      petMode: ov === 'mon', hand: {x: 205, y: 120}, pops: [], squish: false, rubProg: ov === 'mon' ? 45 : 0, floats: [], emote: ov === 'mon' ? 'note' : null, jump: 0, ball: false,
+      talk: {m2: SP.spark.lines.high[0], m3: SP.sprout.lines.low[1]}
+    };
+    if (ov === 'mon') s.feedOpen = false;
+    if (start === 'intro') s.typed = INTRO[0];
+    s.field = this.placeField(s.mons, {}, false);
+    if (inApp && start === 'chat') Object.assign(s, this.chatStart(s));
+    return s;
+  }
+
+  componentDidMount(){
+    if (this.state.phase === 'intro') this.typeLine(0);
+    this._tk = setInterval(() => this.setState(st => ({tick: st.tick + 1})), 500);
+    this._wd = setInterval(() => this.wander(), 2600);
+    this._w0 = setTimeout(() => this.wander(), 400);
+    this._tc = setTimeout(() => this.setState({talk: {}}), 3600);
+    this._ch = setInterval(() => this.chatter(), 5200);
+    // 박사 스프라이트: 말하는 중엔 36프레임 순환, 쉴 땐 손 흔들기 2프레임
+    this._pf = setInterval(() => {
+      const s = this.state; if (s.phase !== 'intro') return;
+      const talking = s.typed.length < INTRO[s.line].length;
+      this._idle = (this._idle || 0) + 1;
+      this.setState({pf: talking ? ((s.pf || 0) + 1) % 36 : (Math.floor(this._idle / 4) % 2)});
+    }, 110);
+  }
+  componentWillUnmount(){
+    clearInterval(this._tk); clearInterval(this._wd); clearInterval(this._ty);
+    clearTimeout(this._to); clearTimeout(this._w0); clearTimeout(this._tc); clearInterval(this._ch); clearTimeout(this._sq); clearInterval(this._pf);
+  }
+  componentDidUpdate(prevProps){
+    const p = this.props || {}, q = prevProps || {};
+    if (p.start !== q.start || p.overlay !== q.overlay) { clearInterval(this._ty); this.setState(this.makeState()); return; }
+    const n = this.state.msgs.length;
+    if (this.chatEl && n !== this._lastLen) { this._lastLen = n; this.chatEl.scrollTop = this.chatEl.scrollHeight; }
+  }
+
+  // ---------- 필드 ----------
+  placeField(mons, prev, jitter){
+    const f = {};
+    mons.filter(m => m.where === 'field').forEach((m, i) => {
+      const sp = SP[m.sp];
+      const c = prev[m.uid] || {x: 4 + i * 16, y: 52 + (i % 2) * 10, flip: 1};
+      if (!jitter) { f[m.uid] = c; return; }
+      const nx = Math.max(3, Math.min(66, c.x + (Math.random() * 34 - 17)));
+      const ny = Math.max(44, Math.min(64, c.y + (Math.random() * 14 - 7)));
+      f[m.uid] = {x: nx, y: ny, flip: sp.face === 'left' ? (nx > c.x ? -1 : 1) : 1};
+    });
+    return f;
+  }
+  wander(){
+    const s = this.state;
+    if (s.phase !== 'app' || s.tab !== 'home' || s.overlay) return;
+    this.setState({field: this.placeField(s.mons, s.field, true)});
+  }
+
+  // ---------- 인트로 ----------
+  typeLine(i){
+    clearInterval(this._ty);
+    const t = INTRO[i]; let n = 0;
+    this.setState({line: i, typed: ''});
+    this._ty = setInterval(() => {
+      n += 1; this.setState({typed: t.slice(0, n)});
+      if (n >= t.length) clearInterval(this._ty);
+    }, 38);
+  }
+  nextLine(){
+    const s = this.state; const t = INTRO[s.line];
+    if (s.typed.length < t.length) { clearInterval(this._ty); this.setState({typed: t}); return; }
+    if (s.line < INTRO.length - 1) this.typeLine(s.line + 1);
+    else this.setState({phase: 'cats'});
+  }
+
+  toast(t, coin){
+    clearTimeout(this._to);
+    this.setState({toast: t, toastCoin: !!coin});
+    this._to = setTimeout(() => this.setState({toast: null, toastCoin: false}), 1800);
+  }
+
+  enterApp(tab){
+    const s = this.state;
+    const picked = s.picked.length ? s.picked : ['ex','st','fd'];
+    const habits = s.habits.length ? s.habits : SEED_HABITS.map(h => ({...h}));
+    const patch = {phase: 'app', tab: tab, picked: picked, habits: habits, overlay: null};
+    const stSp = s.starter ? STARTER[s.starter] : null;
+    if (stSp && !s.mons.some(m => m.sp === stSp)) {
+      const fc = s.mons.filter(m => m.where === 'field').length;
+      patch.mons = s.mons.concat([{uid:'st_' + stSp, sp: stSp, lv:1, exp:0, aff:3, where: fc < 5 ? 'field' : 'bag'}]);
+      patch.field = this.placeField(patch.mons, s.field, false);
+    }
+    if (stSp) { const own = (patch.mons || s.mons).find(m => m.sp === stSp); if (own) patch.chatMon = own.uid; }
+    if (tab === 'chat') Object.assign(patch, this.chatStart({...s, ...patch}));
+    this.setState(patch);
+  }
+
+  goTab(t){
+    const s = this.state;
+    const patch = {tab: t, overlay: null, sheet: false, gdraft: null};
+    if (t === 'chat' && s.msgs.length === 0) Object.assign(patch, this.chatStart(s));
+    this.setState(patch);
+  }
+
+  // ---------- 챗봇 ----------
+  monOf(s, uid){ return s.mons.find(m => m.uid === uid) || s.mons[0]; }
+  chatStart(s){
+    const mon = this.monOf(s, s.chatMon);
+    const msgs = [{from:'bot', text:'안녕! 나 ' + SP[mon.sp].name + '. 오늘 습관 체크하러 왔어.'}];
+    return this.askPatch(s, msgs, 0);
+  }
+  askPatch(s, msgs, i){
+    const hs = s.habits.slice(0, 3);
+    if (i >= hs.length) {
+      const tot = totalOf(s.rec, s.habits);
+      return {msgs: msgs.concat([{from:'bot', text:'오늘 체크 끝! 오늘의 성실도는 ' + tot + '/75야. 같이 탐색하러 갈래?'}]), step:'done', hIdx:i, num:''};
+    }
+    const h = hs[i];
+    return {msgs: msgs.concat([{from:'bot', text:'[' + CAT[h.cat].name + "] '" + h.name + "' 오늘 했어?"}]), step:'yn', hIdx:i, num:''};
+  }
+  answer(yes){
+    const s = this.state; const h = s.habits[s.hIdx]; if (!h) return;
+    const u = unitOf(h);
+    const msgs = s.msgs.concat([{from:'me', text: yes ? '했어!' : '못 했어…'}]);
+    if (!yes) return this.record(0, msgs);
+    if (u === 'OX') return this.record(1, msgs);
+    const label = CAT[h.cat].measures[h.m][0];
+    this.setState({msgs: msgs.concat([{from:'bot', text:'좋아! ' + label + '은 얼마나 했어? 목표는 ' + fmtNum(h.target) + u + '이야.'}]), step:'amount', num:''});
+  }
+  sendNum(raw){
+    const s = this.state; const h = s.habits[s.hIdx]; if (!h) return;
+    const v = parseFloat(raw !== undefined ? raw : s.num);
+    if (!(v >= 0)) { this.toast('숫자를 입력해 주세요'); return; }
+    this.record(v, s.msgs.concat([{from:'me', text: fmtNum(v) + unitOf(h)}]));
+  }
+  record(v, msgs){
+    const s = this.state; const h = s.habits[s.hIdx];
+    const sc = scoreOf(h, v);
+    const rec = {...s.rec}; rec[h.id] = v;
+    let gold = s.gold; const catPts = {...s.catPts}; const rewarded = {...s.rewarded};
+    let reply;
+    if (rewarded[h.id] === undefined) {
+      rewarded[h.id] = sc;
+      const before = catLevel(catPts[h.cat]).lv;
+      catPts[h.cat] = (catPts[h.cat] || 0) + sc; gold += sc;
+      const after = catLevel(catPts[h.cat]).lv; const ups = after - before;
+      gold += ups * 20;
+      if (sc === 0) reply = {from:'bot', text:'괜찮아, 내일 같이 해보자. 기록해 둘게.'};
+      else reply = {from:'bot', text: sc >= 20 ? '최고야! 오늘 해냈구나.' : '좋아, 조금이라도 한 게 중요해.', reward:'성실도 +' + sc + ' · +' + sc + 'G', lvup: ups > 0 ? CAT[h.cat].name + ' Lv.' + after + ' 달성! +' + (ups * 20) + 'G' : ''};
+    } else {
+      reply = {from:'bot', text:'오늘 보상은 이미 받았어. 기록만 고쳐둘게.'};
+    }
+    const next = this.askPatch({...s, rec: rec}, msgs.concat([reply]), s.hIdx + 1);
+    this.setState({rec: rec, gold: gold, catPts: catPts, rewarded: rewarded, ...next});
+  }
+  explore(){
+    const s = this.state; if (s.enc <= 0) return;
+    const pool = SPECIES.filter(sp => s.picked.indexOf(sp.cat) >= 0 && sp.unlock <= catLevel(s.catPts[sp.cat]).lv);
+    let res, gold = s.gold, mons = s.mons;
+    if (!pool.length || Math.random() < 0.35) res = {type:'miss'};
+    else {
+      const sp = pool[Math.floor(Math.random() * pool.length)];
+      if (s.mons.some(m => m.sp === sp.id)) { gold += 15; res = {type:'dup', sp: sp.id}; }
+      else {
+        const fc = s.mons.filter(m => m.where === 'field').length;
+        mons = s.mons.concat([{uid:'n' + s.tick + '_' + s.mons.length, sp: sp.id, lv:1, exp:0, aff:0, where: fc < 5 ? 'field' : 'bag'}]);
+        res = {type:'new', sp: sp.id, toField: fc < 5};
+      }
+    }
+    this.setState({enc: s.enc - 1, gold: gold, mons: mons, encRes: res, step:'explore', field: this.placeField(mons, s.field, false)});
+  }
+  useBall(){
+    const s = this.state;
+    if (s.balls <= 0) { this.toast('성실볼이 없어요 · 상점에서 50G'); return; }
+    if (s.ballsUsed >= 2) { this.toast('성실볼은 하루 2개까지'); return; }
+    this.setState({balls: s.balls - 1, ballsUsed: s.ballsUsed + 1, enc: s.enc + 1});
+    this.toast('탐색 +1회!');
+  }
+
+  // ---------- 몬스터 ----------
+  randomLine(m){ const L = SP[m.sp].lines[tierOf(m.aff)]; return L[Math.floor(Math.random() * L.length)]; }
+  openMon(uid){
+    const m = this.monOf(this.state, uid);
+    this._last = null; this._rub = 0;
+    this.setState({overlay:'mon', selMon: uid, feedOpen:false, petMode:false, pops:[], floats:[], emote:null, jump:0, rubProg:0, monLine: this.randomLine(m)});
+  }
+  patchMon(uid, fn){ return this.state.mons.map(m => m.uid === uid ? fn({...m}) : m); }
+  // ---- 상호작용 연출 ----
+  hop(n){
+    let k = 0; clearTimeout(this._hop);
+    const step = () => {
+      if (k >= n * 2) { this.setState({jump: 0}); return; }
+      this.setState({jump: k % 2 === 0 ? -22 : 0}); k += 1; this._hop = setTimeout(step, 170);
+    };
+    step();
+  }
+  emote(kind){ clearTimeout(this._em); this.setState({emote: kind}); this._em = setTimeout(() => this.setState({emote: null}), 1700); }
+  floatText(text, color){
+    const id = 'f' + Date.now() + Math.random();
+    this.setState(st => ({floats: st.floats.concat([{id: id, text: text, color: color, up: false, x: 40 + Math.round(Math.random() * 20)}])}));
+    setTimeout(() => this.setState(st => ({floats: st.floats.map(f => f.id === id ? {...f, up: true} : f)})), 40);
+    setTimeout(() => this.setState(st => ({floats: st.floats.filter(f => f.id !== id)})), 1100);
+  }
+  tierEmote(m){ return ({low:'sweat', mid:'note', high:'heart'})[tierOf(m.aff)]; }
+  tapMon(){
+    const s = this.state; if (s.petMode) return;
+    const m = this.monOf(s, s.selMon);
+    this.hop(1); this.emote(this.tierEmote(m)); this.setState({monLine: this.randomLine(m)});
+  }
+  talkMon(){
+    const s = this.state; const m = this.monOf(s, s.selMon);
+    let line = this.randomLine(m); if (line === s.monLine) line = this.randomLine(m);
+    this.emote(tierOf(m.aff) === 'low' ? 'dots' : 'spark'); this.setState({monLine: line, petMode: false, feedOpen: false});
+  }
+  playMon(){
+    const s = this.state; const cur = this.monOf(s, s.selMon);
+    this.setState({petMode: false, feedOpen: false, ball: true});
+    setTimeout(() => this.setState({ball: false}), 900);
+    setTimeout(() => { this.hop(3); this.emote('note'); }, 350);
+    if (!cur.played && cur.aff < 10) {
+      const mons = this.patchMon(s.selMon, m => { m.aff += 1; m.played = true; return m; });
+      const m2 = mons.find(m => m.uid === s.selMon);
+      this.setState({mons: mons, monLine: '공이다! 신난다~ ' + this.randomLine(m2)});
+      setTimeout(() => this.floatText('호감도 +1', '#ff6b8a'), 500);
+      if (tierOf(m2.aff) !== tierOf(cur.aff)) this.toast(SP[m2.sp].name + '와 ' + TIER_NAME[tierOf(m2.aff)] + ' 사이가 됐어요!');
+    } else {
+      this.setState({monLine: '또 놀자! 공 던져줘!'});
+    }
+  }
+  // 하루 1회 쓰다듬기 완료 → 호감도 +2
+  finishPet(r){
+    const s = this.state; const cur = this.monOf(s, s.selMon);
+    const gain = Math.min(PET_GAIN, 10 - cur.aff);
+    const mons = this.patchMon(s.selMon, m => { m.aff += gain; m.petted = true; return m; });
+    const m2 = mons.find(m => m.uid === s.selMon);
+    const tierUp = tierOf(m2.aff) !== tierOf(cur.aff);
+    const pops = [0, 1, 2].map(i => ({id: 'p' + s.tick + i, x: Math.round(r.width / 2 - 34 + i * 24), up: false}));
+    this.setState({mons: mons, petMode: false, rubProg: 0, squish: true, pops: pops, monLine: this.randomLine(m2)});
+    this.emote('heart'); this.hop(2);
+    setTimeout(() => this.setState(st => ({pops: st.pops.map(p => ({...p, up: true}))})), 40);
+    setTimeout(() => this.setState({pops: [], squish: false}), 900);
+    if (tierUp) this.toast(SP[m2.sp].name + '와 ' + TIER_NAME[tierOf(m2.aff)] + ' 사이가 됐어요!');
+    else if (gain > 0) this.toast('호감도 +' + gain + ' · 내일 또 쓰다듬어 주세요');
+    else this.toast('호감도 최대! 기분 좋아 보여요');
+  }
+  // 손으로 문지르기: 몬스터 위를 문지른 거리만큼 게이지가 차고, 다 차면 오늘의 쓰다듬기 완료
+  rubAt(cx, cy){
+    if (!this.state.petMode || !this.stageEl) return;
+    const r = this.stageEl.getBoundingClientRect();
+    const x = cx - r.left, y = cy - r.top;
+    const last = this._last; this._last = {x: x, y: y};
+    const onMon = x > r.width * 0.25 && x < r.width * 0.75 && y > r.height * 0.3;
+    const patch = {hand: {x: x, y: y}};
+    if (last && onMon) {
+      const d = Math.hypot(x - last.x, y - last.y);
+      const prog = Math.min(100, this.state.rubProg + d / 6);
+      this._rub = (this._rub || 0) + d;
+      if (this._rub >= 90) {
+        this._rub = 0; patch.squish = true;
+        clearTimeout(this._sq); this._sq = setTimeout(() => this.setState({squish: false}), 180);
+      }
+      if (prog >= 100) { this.setState(patch); this.finishPet(r); return; }
+      patch.rubProg = prog;
+    }
+    this.setState(patch);
+  }
+  // 홈 필드: 가끔 몬스터가 말풍선으로 호감도 단계에 맞는 대사를 함
+  chatter(){
+    const s = this.state;
+    if (s.phase !== 'app' || s.tab !== 'home' || s.overlay) return;
+    const f = s.mons.filter(m => m.where === 'field');
+    if (!f.length || Math.random() < 0.25) { this.setState({talk: {}}); return; }
+    const talk = {};
+    const n = f.length > 2 && Math.random() < 0.3 ? 2 : 1;
+    f.slice().sort(() => Math.random() - 0.5).slice(0, n).forEach(m => { talk[m.uid] = this.randomLine(m); });
+    this.setState({talk: talk});
+    clearTimeout(this._tc); this._tc = setTimeout(() => this.setState({talk: {}}), 3400);
+  }
+  feed(id){
+    const s = this.state; const it = ITEMS.find(i => i.id === id);
+    if (!s.inv[id]) return;
+    const cur = this.monOf(s, s.selMon);
+    if (cur.lv >= 20) { this.toast('이미 최종형이에요'); return; }
+    let lv = cur.lv, exp = cur.exp + it.exp;
+    while (exp >= 125 && lv < 20) { exp -= 125; lv += 1; }
+    if (lv >= 20) exp = 0;
+    const inv = {...s.inv}; inv[id] -= 1;
+    const mons = this.patchMon(s.selMon, m => { m.lv = lv; m.exp = exp; return m; });
+    this.setState({inv: inv, mons: mons, monLine: '냠냠! 맛있다!'});
+    this.hop(1); this.emote('heart'); this.floatText('+' + it.exp + ' EXP', '#2f7fa0');
+    if ((cur.lv < 10 && lv >= 10) || (cur.lv < 20 && lv >= 20)) this.toast('진화! ' + stageOf(lv) + '이 되었어요');
+    else if (lv > cur.lv) this.toast('레벨 업! Lv.' + lv);
+    else this.toast('+' + it.exp + ' EXP');
+  }
+  moveMon(uid, where){
+    const s = this.state;
+    if (where === 'field' && s.mons.filter(m => m.where === 'field').length >= 5) { this.toast('필드는 최대 5마리'); return; }
+    if (where === 'bag' && s.mons.filter(m => m.where === 'field').length <= 1) { this.toast('필드에 1마리는 남겨둬요'); return; }
+    const mons = this.patchMon(uid, m => { m.where = where; return m; });
+    const patch = {mons: mons, field: this.placeField(mons, s.field, false)};
+    if (where === 'bag' && s.overlay === 'mon') patch.overlay = null;
+    this.setState(patch);
+    this.toast(where === 'field' ? '필드로 꺼냈어요' : '가방에 넣었어요');
+  }
+  buy(id, n){
+    const s = this.state; n = Math.max(1, n || 1);
+    if (id === 'ball') {
+      if (s.gold < 50 * n) return;
+      this.setState({gold: s.gold - 50 * n, balls: s.balls + n, qtyPop: null, shopLine: '성실볼이야! 탐색에서 한 번 더 찾아볼 수 있어.', buyPop: {id:'ball', img: BALL_IMG, name:'성실볼', price: 50 * n, n: n, count: s.balls + n}}); return;
+    }
+    const it = ITEMS.find(i => i.id === id); if (s.gold < it.price * n) return;
+    const inv = {...s.inv}; inv[id] += n;
+    this.setState({gold: s.gold - it.price * n, inv: inv, qtyPop: null, shopLine: ({s:'고마워! 작은 물약도 꾸준히 먹이면 금방 커.', m:'좋은 선택! 중급은 가성비가 괜찮지~', l:'와, 상급이라니! 몬스터가 엄청 좋아할 거야.'})[id], buyPop: {id: id, img: it.img, name: it.name, price: it.price * n, n: n, count: inv[id]}});
+  }
+
+
+  // ---------- 목표 ----------
+  toggleGoal(tier, id){
+    const s = this.state; const list = s.goals[tier].map(g => ({...g}));
+    const g = list.find(x => x.id === id); g.done = !g.done;
+    const amt = g.paid ? 0 : (tier === 'weekly' ? 40 : 150);
+    const goals = {...s.goals}; goals[tier] = list;
+    this.setState({goals: goals, gold: s.gold + (g.done ? amt : -amt)});
+    if (g.done) this.toast('+' + amt, true);
+  }
+  saveGoal(){
+    const s = this.state; const d = s.gdraft; if (!d) return;
+    if (!d.t.trim()) { this.toast('목표를 적어주세요'); return; }
+    const goals = {...s.goals};
+    if (d.id) {
+      goals[d.tier] = s.goals[d.tier].map(g => g.id === d.id ? {...g, t: d.t.trim(), d: d.d.trim()} : g);
+      this.setState({goals: goals, gdraft: null}); this.toast('목표를 고쳤어요'); return;
+    }
+    const paid = d.tier === 'weekly' && s.goals.weekly.length >= 3;
+    goals[d.tier] = s.goals[d.tier].concat([{id:'g' + s.tick + '_' + s.goals[d.tier].length, t: d.t.trim(), d: d.d.trim(), done:false, paid: paid}]);
+    this.setState({goals: goals, gdraft: null});
+  }
+  deleteGoal(){
+    const s = this.state; const d = s.gdraft; if (!d || !d.id) return;
+    const g = s.goals[d.tier].find(x => x.id === d.id);
+    const goals = {...s.goals}; goals[d.tier] = s.goals[d.tier].filter(x => x.id !== d.id);
+    const refund = g && g.done && !g.paid ? (d.tier === 'weekly' ? 40 : 150) : 0;
+    this.setState({goals: goals, gdraft: null, gold: s.gold - refund}); this.toast('목표를 지웠어요');
+  }
+  addGoalQuick(tier, text){
+    const s = this.state; const v = (text || '').trim();
+    if (!v) { this.toast('목표를 적어주세요'); return; }
+    const cap = tier === 'weekly' ? 3 : 1;
+    if (s.goals[tier].length >= cap) { this.toast(tier === 'weekly' ? '주간 목표는 3개까지' : '월간 목표는 1개'); return; }
+    const goals = {...s.goals}; goals[tier] = s.goals[tier].concat([{id:'g' + Date.now(), t: v, d: '', done:false}]);
+    const goalIn = {...s.goalIn}; goalIn[tier] = '';
+    this.setState({goals: goals, goalIn: goalIn});
+  }
+
+  qtyVals(s){
+    const q = s.qtyPop; if (!q) return {};
+    const isBall = q.id === 'ball';
+    const it = isBall ? {name:'성실볼', price: 50, img: BALL_IMG} : ITEMS.find(i => i.id === q.id);
+    const max = Math.max(1, Math.floor(s.gold / it.price));
+    const set = n => this.setState({qtyPop: {...this.state.qtyPop, n: Math.max(1, Math.min(99, n))}});
+    const total = it.price * q.n; const cant = total > s.gold;
+    return {
+      qtyImg: it.img, qtyName: it.name, qtyUnit: it.price, qtyOwned: isBall ? s.balls : s.inv[q.id], qtyN: q.n,
+      qtyDec: () => set(q.n - 1), qtyInc: () => set(q.n + 1),
+      qtyQuick: [1, 5, 10].map(k => ({label: k + '개', bg: q.n === k ? '#ffe58a' : '#f4ead2', pick: () => set(k)}))
+        .concat([{label: '최대', bg: q.n === max ? '#ffe58a' : '#f4ead2', pick: () => set(max)}]),
+      qtyTotal: fmtNum(total), qtyTotalColor: cant ? '#d94a3d' : '#b85a00', qtyCant: cant,
+      qtyBuyBg: cant ? '#e0d6bf' : '#f0b23c', qtyBuyShadow: cant ? '#b8ab90' : '#8a5a1a',
+      qtyBuyLabel: cant ? '골드가 부족해요' : q.n + '개 사기',
+      qtyBuy: () => this.buy(q.id, q.n), closeQty: () => this.setState({qtyPop: null})
+    };
+  }
+  renderVals(){
+    const s = this.state;
+    const phase = s.phase;
+    const bobY = s.tick % 2 ? '-4px' : '0px';
+    const fieldList = s.mons.filter(m => m.where === 'field');
+    const todayScore = totalOf(s.rec, s.habits);
+    const checked = s.habits.slice(0, 3).filter(h => s.rec[h.id] !== undefined).length;
+    const streak = 11 + (checked > 0 ? 1 : 0);
+    const on = (a) => a;
+
+    // 온보딩
+    const catCards = CATS.map(c => {
+      const sel = s.picked.indexOf(c.id) >= 0;
+      return {ic: CI[c.id], glyph:c.glyph, name:c.name, type:c.type, color:c.color, check: sel ? '선택됨' : '',
+        meas: c.measures.map(m => m[0]).join(' · '),
+        sel: sel, bg: sel ? '#ffe58a' : '#fffaf0', shadow: sel ? '0 0 0 #0d0b16' : '0 5px 0 #0d0b16', lift: sel ? '4px' : '0px',
+        toggle: () => {
+          const p = s.picked.slice(); const i = p.indexOf(c.id);
+          if (i >= 0) { p.splice(i, 1); if (s.starter === c.id) this.setState({starter: null}); } else if (p.length < 3) p.push(c.id); else { this.toast('카테고리는 최대 3개'); return; }
+          this.setState({picked: p});
+        }};
+    });
+    const dcat = s.draft.cat ? CAT[s.draft.cat] : null;
+    const dmeas = dcat ? dcat.measures[s.draft.m] : null;
+    const draftNeedsTarget = !!(dmeas && dmeas[1] !== 'OX');
+    const canAddHabit = !!(s.draft.name.trim() && dcat && (!draftNeedsTarget || parseFloat(s.draft.target) > 0));
+
+    // 홈
+    const fieldMons = fieldList.map((m, i) => {
+      const sp = SP[m.sp]; const pos = s.field[m.uid] || {x: 6 + i * 21, y: 44, flip: 1};
+      return {x: pos.x + '%', y: pos.y + '%', flip: pos.flip, img: IMG[m.sp], h: sp.h + 'px',
+        bob: ((s.tick + i) % 2) ? '-3px' : '0px', z: Math.max(1, Math.round(pos.y / 20)),
+        label: sp.name + ' Lv.' + m.lv, aria: sp.name + ' 정보 보기', tap: () => this.openMon(m.uid),
+        hasTalk: !!(s.talk && s.talk[m.uid]), talk: (s.talk && s.talk[m.uid]) || '',
+        talkColor: TIER_COLOR[tierOf(m.aff)], tierName: TIER_NAME[tierOf(m.aff)]};
+    });
+    const homeHabits = s.habits.map((h, i) => {
+      const c = CAT[h.cat]; const ms = c.measures[h.m]; const u = ms[1];
+      const v = s.rec[h.id]; const counted = i < 3;
+      return {ic: CI[h.cat], glyph:c.glyph, color:c.color, name:h.name,
+        meta: ms[0] + (u === 'OX' ? ' · O/X' : ' · 목표 ' + fmtNum(h.target) + u) + ' · ' + PERIODS[h.period][0] + ' ' + PERIODS[h.period][1],
+        state: !counted ? '반영 안 됨' : (v === undefined ? '미체크' : (u === 'OX' ? (v ? '완료' : '못 함') : fmtNum(v) + u) + ' · +' + scoreOf(h, v)),
+        stateColor: v === undefined ? '#8c7fc0' : (scoreOf(h, v) > 0 ? '#f0b23c' : '#ff7a4d')};
+    });
+    const scoreRows = s.habits.slice(0, 3).map(h => {
+      const v = s.rec[h.id]; const sc = v === undefined ? 0 : scoreOf(h, v);
+      return {name: h.name, score: sc, pct: Math.round(sc / 25 * 100) + '%', color: CAT[h.cat].color};
+    });
+
+    // 상점 / 가방 / 몬스터
+    const shopItems = ITEMS.map(it => {
+      const cant = s.gold < it.price;
+      return {isPotion:true, isBall:false, name: it.name, color: it.color, img: it.img, desc: '+' + it.exp + ' EXP · 골드당 효율 ' + it.eff, owned: s.inv[it.id] + '개',
+        priceText: it.price + 'G', cant: cant, btnBg: cant ? '#e0d6bf' : '#ffd24d', btnShadow: cant ? '#b8ab90' : '#b27a14', btnColor: cant ? '#8a7a6a' : '#2b1a1a', coin: cant ? '#b8ab90' : '#f0b23c',
+        buy: () => this.setState({qtyPop: {id: it.id, n: 1}})};
+    }).concat([(() => {
+      const cant = s.gold < 50;
+      return {isPotion:false, isBall:true, name:'성실볼', color:'#a99bf5', desc:'꺼내면 오늘 탐색 +1회 · 하루 최대 2개', owned: s.balls + '개',
+        priceText:'50G', cant: cant, btnBg: cant ? '#e0d6bf' : '#ffd24d', btnShadow: cant ? '#b8ab90' : '#b27a14', btnColor: cant ? '#8a7a6a' : '#2b1a1a', coin: cant ? '#b8ab90' : '#f0b23c',
+        buy: () => this.setState({qtyPop: {id: 'ball', n: 1}})};
+    })()]);
+    const ballCant = s.balls <= 0 || s.ballsUsed >= 2;
+    const bagMons = s.mons.map(m => {
+      const sp = SP[m.sp]; const inField = m.where === 'field';
+      return {img: IMG[m.sp], name: sp.name, lv: m.lv, stage: stageOf(m.lv), where: inField ? '필드에 있음' : '가방에 있음', whereColor: inField ? '#3f8f3a' : '#8a5a2b', cardBg: inField ? '#fffaf0' : '#f6ecd6', pct: Math.round(m.exp / 125 * 100) + '%',
+        btn: inField ? '넣기' : '꺼내기', btnBg: inField ? '#f4e2c0' : '#7fd36b', btnShadow: inField ? '#c9a46a' : '#3f8f3a',
+        act: () => this.moveMon(m.uid, inField ? 'bag' : 'field')};
+    });
+    const sel = s.selMon ? this.monOf(s, s.selMon) : null;
+    const selSp = sel ? SP[sel.sp] : SP.wolf;
+    const selCat = CAT[selSp.cat];
+    const moodKey = sel ? (sel.petted && sel.played ? 'heart' : (sel.petted || sel.played ? 'note' : (tierOf(sel.aff) === 'low' ? 'dots' : 'sweat'))) : 'note';
+    const moodText = sel ? (sel.petted && sel.played ? '오늘 최고로 신났어요!' : (sel.petted || sel.played ? '기분이 좋아 보여요' : '심심해 보여요… 놀아줄까?')) : '';
+    const hearts = [0,1,2,3,4].map(i => {
+      const a = sel ? sel.aff : 0;
+      return {fill: a >= (i + 1) * 2 ? '#ff6b8a' : (a === i * 2 + 1 ? '#ffb3c4' : '#e0d6bf')};
+    });
+
+    // 챗봇
+    const chatMon = this.monOf(s, s.chatMon);
+    const curH = s.habits[s.hIdx];
+    const curU = curH ? unitOf(curH) : '';
+    const quick = curH && curU !== 'OX' ? (curU === '점' ? [3,4,5] : [Math.max(1, Math.round(curH.target * 0.5 * 10) / 10), curH.target, Math.round(curH.target * 1.5 * 10) / 10]) : [];
+    const er = s.encRes || {type:'miss'};
+    const erSp = er.sp ? SP[er.sp] : null;
+    const noEnc = s.enc <= 0;
+
+    // 통계
+    const streakDays = [];
+    for (let i = 0; i < 14; i++) {
+      const today = i === 13; const done = today ? checked > 0 : i !== 1;
+      streakDays.push({bg: done ? (today ? '#f0b23c' : '#6d5ec4') : '#0f0d1c', border: today ? '#ffd479' : (done ? '#8c7fc0' : '#3a3358')});
+    }
+    const histAll = HIST.concat([['오늘', todayScore]]);
+    const bars = histAll.map((d, i) => {
+      const today = i === histAll.length - 1;
+      return {label: d[0], val: d[1], h: Math.max(4, Math.round(d[1] / 75 * 120)) + 'px', color: today ? '#f0b23c' : '#6d5ec4', valColor: today ? '#f0b23c' : '#9b91c4', labelColor: today ? '#f0b23c' : '#9b91c4'};
+    });
+    const weekAvg = Math.round(histAll.reduce((a, d) => a + d[1], 0) / histAll.length);
+    const catRows = CATS.map(c => {
+      const act = s.picked.indexOf(c.id) >= 0; const L = catLevel(s.catPts[c.id]);
+      return {ic: CI[c.id], glyph:c.glyph, name:c.name, color: act ? c.color : '#6b6390', lvText: act ? 'Lv.' + L.lv : '미등록', pct: act ? Math.round(L.cur / L.need * 100) + '%' : '0%',
+        sub: act ? '다음 레벨까지 ' + (L.need - L.cur) + ' 성실도 · 레벨업마다 +20G' : '도감을 채우면 열려요', op: act ? 1 : 0.55};
+    });
+
+    // 도감
+    const ownedSp = {}; s.mons.forEach(m => { ownedSp[m.sp] = m; });
+    const dexTabs = CATS.map(c => {
+      const list = SPECIES.filter(x => x.cat === c.id); const found = list.filter(x => ownedSp[x.id]).length;
+      const cur = s.dexCat === c.id;
+      return {ic: CI[c.id], glyph:c.glyph, short:c.short, aria: c.name + ' 도감', count: found + '/6',
+        bg: cur ? '#ffe58a' : '#f4f1e6', shadow: cur ? '0 0 0 #3a1f1a' : '0 4px 0 ' + mixHex(CAT[s.dexCat].color, '#2b1a1a', 0.45), lift: cur ? '2px' : '0px',
+        pick: () => this.setState({dexCat: c.id, dexSel: 0})};
+    });
+    const dc = CAT[s.dexCat]; const dL = catLevel(s.catPts[s.dexCat]); const dAct = s.picked.indexOf(s.dexCat) >= 0;
+    const dCatIdx = CATS.findIndex(c => c.id === s.dexCat);
+    const dList = SPECIES.filter(x => x.cat === s.dexCat);
+    const dFound = dList.filter(x => ownedSp[x.id]).length;
+    const pad3 = n => ('00' + n).slice(-3);
+    const STARS = {'흔함':1, '보통':2, '희귀':3};
+    const rawSlots = [];
+    for (let i = 0; i < 6; i++) {
+      const sp = dList[i]; const no = pad3(dCatIdx * 6 + i + 1);
+      if (sp) {
+        const own = ownedSp[sp.id]; const open = dAct && sp.unlock <= dL.lv;
+        rawSlots.push({no: no, sp: sp, own: own, open: open, unlock: sp.unlock});
+      } else rawSlots.push({no: no, sp: null, own: null, open: false, unlock: FILL_UNLOCK[i]});
+    }
+    const selIdx = Math.min(s.dexSel || 0, 5);
+    const dexSlots = rawSlots.map((r, i) => ({
+      no: r.no, hasImg: !!r.sp, noImg: !r.sp, img: r.sp ? IMG[r.sp.id] : '',
+      filter: r.own ? 'none' : 'brightness(0)', op: r.own ? 1 : 0.3, owned: !!r.own,
+      name: r.own ? r.sp.name : '??????', nameColor: r.own ? '#2b1a1a' : '#a8997f',
+      sub: r.own ? 'Lv.' + r.own.lv : (r.open ? '출현 중' : 'Lv.' + r.unlock + ' 출현'),
+      rowBg: i === selIdx ? '#ffe58a' : (i % 2 ? '#f6eedb' : '#fffaf0'), arrowOp: i === selIdx ? 1 : 0,
+      pick: () => this.setState({dexSel: i})
+    }));
+    const R = rawSlots[selIdx];
+    const nStars = R.sp ? STARS[R.sp.rarity] || 1 : 0;
+    const dd = {
+      no: R.no, hasImg: !!R.sp, noImg: !R.sp, img: R.sp ? IMG[R.sp.id] : '', owned: !!R.own,
+      filter: R.own ? 'none' : 'brightness(0)', op: R.own ? 1 : 0.35,
+      name: R.own ? R.sp.name : '??????', ic: CI[dc.id], type: dc.type + ' 타입', typeBg: dc.color,
+      stars: [0,1,2].map(i => ({fill: R.own && i < nStars ? '#f0b23c' : '#d8cdb5'})),
+      rarity: R.own ? R.sp.rarity : '???',
+      state: R.own ? '보유 중 · Lv.' + R.own.lv + ' · ' + stageOf(R.own.lv) : (R.open ? '지금 탐색하면 만날 수 있어요!' : '카테고리 Lv.' + R.unlock + '에서 출현'),
+      stateColor: R.own ? '#3f8f3a' : (R.open ? '#d94a3d' : '#7a6a60'),
+      desc: R.own ? R.sp.desc : (R.sp ? '그림자만 어렴풋이 보인다. ' + dc.name + ' 습관을 꾸준히 하면 모습을 드러낼 것 같다.' : '아직 아무것도 알려지지 않은 몬스터. 카테고리 레벨을 올려보자.')
+    };
+    const dexFound = SPECIES.filter(x => ownedSp[x.id]).length;
+    const dexTotal = dexFound + '/36';
+    const slotsUnlocked = 3 + SLOT_STEPS.filter(n => dexFound >= n).length;
+    const nextStep = SLOT_STEPS.find(n => dexFound < n);
+    const prevStep = [0].concat(SLOT_STEPS).filter(n => n <= dexFound).pop();
+
+    // 목표
+    const mkItems = (tier) => s.goals[tier].map(g => ({
+      title: g.t, detail: g.d || '상세 내용 없음 · 연필을 눌러 적어보세요', toggle: () => this.toggleGoal(tier, g.id),
+      edit: () => this.setState({gdraft: {tier: tier, id: g.id, t: g.t, d: g.d || ''}}), editing: !!(s.gdraft && s.gdraft.id === g.id),
+      done: g.done, cardBg: g.done ? '#e9e2cf' : '#fffaf0', fill: g.done ? '#7fd36b' : '#ffffff',
+      txt: g.done ? '#8a7a6a' : '#2b1a1a', deco: g.done ? 'line-through' : 'none',
+      amt: g.paid ? 0 : (tier === 'weekly' ? 40 : 150), tagBg: g.done ? '#ffd24d' : '#fffaf0', tagBorder: g.done ? '#0d0b16' : '#cdbf9f', tagOp: g.done ? 1 : 0.7
+    }));
+    const wCap = 3 + (s.extraSlot ? 1 : 0);
+    const draftKit = {
+      gdT: s.gdraft ? s.gdraft.t : '', gdD: s.gdraft ? s.gdraft.d : '',
+      setGdT: e => this.setState({gdraft: {...this.state.gdraft, t: e.target.value}}),
+      setGdD: e => this.setState({gdraft: {...this.state.gdraft, d: e.target.value}}),
+      save: () => this.saveGoal(), cancel: () => this.setState({gdraft: null})
+    };
+    const goalSections = [
+      {...draftKit, formTitle: s.gdraft && s.gdraft.id ? '목표 수정' : '새 목표', editing: !!(s.gdraft && s.gdraft.id), del: () => this.deleteGoal(), name:'주간 목표', slotText: s.goals.weekly.length + '/' + wCap, reward:'개당 +40G', items: mkItems('weekly'),
+        drafting: !!(s.gdraft && s.gdraft.tier === 'weekly'),
+        canAdd: !s.gdraft && s.goals.weekly.length < wCap, freeLeft: wCap - s.goals.weekly.length,
+        add: () => this.setState({gdraft: {tier:'weekly', t:'', d:''}}),
+        locked: !s.extraSlot && s.goals.weekly.length >= 3 && !s.gdraft,
+        unlock: () => { this.setState({extraSlot: true}); this.toast('결제 화면 자리 · 슬롯 +1'); }},
+      {...draftKit, formTitle: s.gdraft && s.gdraft.id ? '목표 수정' : '새 목표', editing: !!(s.gdraft && s.gdraft.id), del: () => this.deleteGoal(), name:'월간 목표', slotText: s.goals.monthly.length + '/1', reward:'+150G', items: mkItems('monthly'),
+        drafting: !!(s.gdraft && s.gdraft.tier === 'monthly'),
+        canAdd: !s.gdraft && s.goals.monthly.length < 1, freeLeft: 1 - s.goals.monthly.length,
+        add: () => this.setState({gdraft: {tier:'monthly', t:'', d:''}}),
+        locked: false, unlock: () => {}}
+    ];
+
+    const navDefs = [['home','홈'],['chat','챗봇'],['stats','통계'],['dex','도감'],['goals','목표']];
+
+    return {
+      bobY: bobY, bobY2: s.tick % 2 ? '0px' : '-4px',
+      // 인트로
+      isIntro: phase === 'intro', typed: s.typed, cursorOp: s.tick % 2 ? 0 : 1,
+      nextLabel: s.typed.length < INTRO[s.line].length ? '▶ 넘기기' : (s.line < INTRO.length - 1 ? '다음 ▶' : '시작하기'),
+      nextLine: () => this.nextLine(), skipIntro: () => { clearInterval(this._ty); this.setState({phase:'cats'}); },
+      introMons: ['wolf','spark','sprout','moon'].map(id => ({img: IMG[id]})),
+      profX: (-156 * (s.pf || 0)) + 'px',
+      // 카테고리
+      starterSlots: [0,1,2].map(i => {
+        const cid = s.picked[i]; const c = cid ? CAT[cid] : null; const spId = cid ? STARTER[cid] : null;
+        const chosen = !!cid && s.starter === cid; const ready = !!spId;
+        return {aria: c ? c.name + ' 길의 첫 파트너 후보' : '빈 자리',
+          hasImg: ready, isBall: !ready, img: ready ? IMG[spId] : '', ballTop: c ? c.color : '#6d5ec4',
+          bob: ((s.tick + i) % 2) ? '-3px' : '0px',
+          name: chosen && ready ? SP[spId].name : '???', nameColor: chosen ? '#2b1a1a' : '#ffffff',
+          type: c ? c.type + ' 타입' : '길을 골라요', typeBg: c ? c.color : '#9b91c4',
+          bg: chosen ? '#ffe58a' : (c ? '#3d2f6e' : '#241a3d'), shadow: chosen ? '0 0 0 #0d0b16' : '0 5px 0 #0d0b16', lift: chosen ? '4px' : '0px',
+          cursor: c ? 'pointer' : 'default', chosen: chosen,
+          pick: () => { if (!cid) { this.toast('먼저 위에서 길을 골라주세요'); return; } this.setState({starter: cid}); if (ready) this.toast(SP[spId].name + '…? 두근두근!'); }};
+      }),
+      isCats: phase === 'cats', catCards: catCards, pickCount: s.picked.length, pickNone: s.picked.length === 0,
+      catNextBg: s.picked.length ? '#f0b23c' : '#3a3358', catNextShadow: s.picked.length ? '#8a5a1a' : '#0d0b16',
+      confirmCats: () => { if (!s.picked.length) return; this.setState({phase:'habit', draft: {...s.draft, cat: s.picked[0], m:0, target: String(CAT[s.picked[0]].measures[0][2])}}); },
+      sampleStart: () => this.setState({phase:'app', tab:'home', picked:['ex','st','fd'], habits: SEED_HABITS.map(h => ({...h}))}),
+      // 습관
+      isHabit: phase === 'habit', draftName: s.draft.name,
+      setDraftName: e => this.setState({draft: {...s.draft, name: e.target.value}}),
+      draftCats: s.picked.map(id => { const c = CAT[id]; const cur = s.draft.cat === id;
+        return {ic: CI[id], name:c.name, short:c.short, bg: cur ? '#ffe58a' : '#f4ead2', shadow: cur ? '0 0 0 #0d0b16' : '0 4px 0 #b08a5a', lift: cur ? '3px' : '0px',
+          pick: () => this.setState({draft: {...s.draft, cat:id, m:0, target: String(c.measures[0][2])}})}; }),
+      draftHasCat: !!dcat,
+      presets: dcat ? (PRESETS[dcat.id] || []).map(p => { const on = s.draft.name === p[0];
+        return {label: p[0], bg: on ? '#ffe58a' : '#ffffff', shadow: on ? '#b27a14' : '#c9b89a',
+          pick: () => this.setState({draft: {...s.draft, name: p[0], m: p[1], target: String(p[2])}})}; }) : [],
+      draftMeasures: dcat ? dcat.measures.map((m, i) => ({label: m[0] + (m[1] === 'OX' ? ' · O/X' : ' · ' + m[1]),
+        bg: s.draft.m === i ? '#cfe8ff' : '#ffffff', shadow: s.draft.m === i ? '#5a8fc0' : '#c9b89a',
+        pick: () => this.setState({draft: {...s.draft, m:i, target: String(m[2])}})})) : [],
+      draftNeedsTarget: draftNeedsTarget, draftIsOX: !!(dmeas && dmeas[1] === 'OX'), draftUnit: dmeas ? dmeas[1] : '',
+      draftTargetText: fmtNum(parseFloat(s.draft.target) || 0),
+      decTarget: () => { const st = STEP[dmeas ? dmeas[1] : ''] || 1; const v = Math.max(st, Math.round(((parseFloat(s.draft.target) || 0) - st) * 10) / 10); this.setState({draft: {...s.draft, target: String(v)}}); },
+      incTarget: () => { const st = STEP[dmeas ? dmeas[1] : ''] || 1; const v = Math.round(((parseFloat(s.draft.target) || 0) + st) * 10) / 10; this.setState({draft: {...s.draft, target: String(v)}}); },
+      draftPeriods: PERIODS.map((p, i) => { const on = s.draft.period === i; const C = CHESTS[i];
+        return {label: p[0], mult: p[1], size: [26, 30, 34][i], lid: C[0], body: C[1], band: C[2],
+          bg: on ? '#ffe58a' : '#f4ead2', shadow: on ? '0 0 0 #0d0b16' : '0 4px 0 #b08a5a', lift: on ? '3px' : '0px',
+          pick: () => this.setState({draft: {...s.draft, period:i}})}; }),
+      cantAdd: !canAddHabit, addBg: canAddHabit ? '#ffd24d' : '#e0d6bf', addShadow: canAddHabit ? '#b27a14' : '#b8ab90', addColor: canAddHabit ? '#2b1a1a' : '#8a7a6a',
+      addHabit: () => {
+        if (!canAddHabit) return;
+        const h = {id:'h' + s.tick + '_' + s.habits.length, name: s.draft.name.trim(), cat: s.draft.cat, m: s.draft.m, target: draftNeedsTarget ? parseFloat(s.draft.target) : 1, period: s.draft.period};
+        this.setState({habits: s.habits.concat([h]), draft: {...s.draft, name:''}});
+        this.toast('퀘스트 등록! ' + h.name);
+      },
+      hasHabits: s.habits.length > 0, habitCountText: s.habits.length + '개',
+      habitRows: s.habits.map(h => { const c = CAT[h.cat]; const ms = c.measures[h.m];
+        return {ic: CI[h.cat], glyph:c.glyph, color:c.color, name:h.name,
+          meta: c.name + ' · ' + ms[0] + (ms[1] === 'OX' ? '' : ' ' + fmtNum(h.target) + ms[1]) + ' · ' + PERIODS[h.period][0] + ' ' + PERIODS[h.period][1],
+          remove: () => this.setState({habits: s.habits.filter(x => x.id !== h.id)})}; }),
+      noHabits: s.habits.length === 0, habitNextBg: s.habits.length ? '#f0b23c' : '#3a3358', habitNextShadow: s.habits.length ? '#8a5a1a' : '#0d0b16',
+      finishLabel: s.habits.length ? '모험 시작 ▶' : '퀘스트를 1개 이상 등록해 주세요',
+      finishHabits: () => { if (s.habits.length) this.setState({phase:'goalintro'}); },
+      // 목표 안내
+      isGoalIntro: phase === 'goalintro',
+      goalDoneLabel: (s.goals.weekly.length + s.goals.monthly.length) ? '모험 시작 ▶' : '목표 없이 시작 ▶',
+      onbGoalSecs: ['weekly','monthly'].map(tier => {
+        const cap = tier === 'weekly' ? 3 : 1; const list = s.goals[tier];
+        const base = s.habits.slice(0, 3).map(h => tier === 'weekly' ? "'" + h.name + "' 주 5일 지키기" : "'" + h.name + "' 한 달 개근하기");
+        const presets = base.filter(x => !list.some(g => g.t === x)).slice(0, 2);
+        return {name: tier === 'weekly' ? '주간 목표' : '월간 목표', countText: list.length + '/' + cap + ' · ' + (tier === 'weekly' ? '개당 +40G' : '+150G'),
+          items: list.map(g => ({t: g.t, remove: () => { const goals = {...s.goals}; goals[tier] = list.filter(x => x.id !== g.id); this.setState({goals: goals}); }})),
+          canAdd: list.length < cap, input: s.goalIn[tier] || '', placeholder: tier === 'weekly' ? '예: 주 3회 러닝' : '예: 책 2권 완독',
+          setInput: e => { const goalIn = {...this.state.goalIn}; goalIn[tier] = e.target.value; this.setState({goalIn: goalIn}); },
+          add: () => this.addGoalQuick(tier, s.goalIn[tier]),
+          presets: presets.map(x => ({label: x, pick: () => this.addGoalQuick(tier, x)}))};
+      }),
+      showShopPrev: !!s.shopPrev, shopPrevLabel: s.shopPrev ? '골드로 살 수 있는 것 접기 ▲' : '골드로 살 수 있는 것은? ▼', toggleShopPrev: () => this.setState({shopPrev: !s.shopPrev}),
+      shopPreview: ITEMS.map(it => ({isPotion:true, isBall:false, name: it.name, color: it.color, img: it.img, desc: '+' + it.exp + ' EXP · 골드당 효율 ' + it.eff, price: it.price + 'G',
+          hint: it.price <= 40 ? '주간 목표 1개면 ' + Math.floor(40 / it.price) + '개!' : (it.price <= 150 ? '월간 목표 1개면 ' + Math.floor(150 / it.price) + '개!' : '꾸준히 모으면 한 번에 크게!'),
+          hintBg: it.price <= 40 ? '#2f7fa0' : (it.price <= 150 ? '#b85a00' : '#d94a3d')}))
+        .concat([{isPotion:false, isBall:true, name:'성실볼', color:'#a99bf5', desc:'오늘 탐색 +1회 · 하루 최대 2개', price:'50G', hint:'월간 목표 1개면 3개!', hintBg:'#b85a00'}]),
+      enterHome: () => this.enterApp('home'), enterGoals: () => this.enterApp('goals'),
+
+      // 앱 공통
+      dateText: (() => { const d = new Date(); return (d.getMonth() + 1) + '월 ' + d.getDate() + '일'; })(),
+      dowText: ['일요일','월요일','화요일','수요일','목요일','금요일','토요일'][new Date().getDay()],
+      isApp: phase === 'app', goldText: fmtNum(s.gold), balls: s.balls, ballsUsed: s.ballsUsed, streak: streak, enc: s.enc,
+      navItems: navDefs.map(d => ({label: d[1], icon: ICON[d[0]], color: s.tab === d[0] ? '#f0b23c' : '#9b91c4', mark: s.tab === d[0] ? '#f0b23c' : 'transparent', pick: () => this.goTab(d[0])})),
+      hasQtyPop: !!s.qtyPop, ...this.qtyVals(s),
+      buyPopN: s.buyPop ? (s.buyPop.n || 1) : 1,
+      hasBuyPop: !!s.buyPop, buyPopImg: s.buyPop ? s.buyPop.img : '', buyPopName: s.buyPop ? s.buyPop.name : '',
+      buyPopPrice: s.buyPop ? s.buyPop.price : 0, buyPopCount: s.buyPop ? s.buyPop.count : 0,
+      buyPopUseLabel: s.buyPop && s.buyPop.id === 'ball' ? '탐색하러 가기' : '몬스터에게 주기',
+      closeBuyPop: () => this.setState({buyPop: null}),
+      buyPopUse: () => {
+        const bp = s.buyPop; if (!bp) return;
+        if (bp.id === 'ball') {
+          const patch = {buyPop: null, tab: 'chat', overlay: null};
+          if (s.msgs.length === 0) Object.assign(patch, this.chatStart(s));
+          this.setState(patch); return;
+        }
+        const fieldM = s.mons.filter(m => m.where === 'field');
+        const target = fieldM.find(m => m.uid === s.chatMon) || fieldM[0] || s.mons[0];
+        this._last = null; this._rub = 0;
+        this.setState({buyPop: null, overlay: 'mon', selMon: target.uid, feedOpen: true, petMode: false, pops: [], floats: [], emote: null, jump: 0, rubProg: 0, monLine: '방금 산 거 나 주는 거야?'});
+      },
+      hasToast: !!s.toast, toastText: s.toast || '', toastCoin: !!s.toastCoin,
+      closeOverlay: () => this.setState({overlay: null, feedOpen: false, petMode: false, pops: []}),
+
+      // 홈
+      isHome: s.tab === 'home', fieldMons: fieldMons, fieldCountText: fieldList.length + '/5',
+      openShop: () => this.setState({overlay:'shop', shopLine: null}), openBag: () => this.setState({overlay:'bag'}),
+      sheetOpen: s.sheet, sheetClosed: !s.sheet, sheetH: s.sheet ? '470px' : '108px', sheetAria: s.sheet ? '시트 접기' : '시트 펼치기',
+      toggleSheet: () => this.setState({sheet: !s.sheet}),
+      sheetTabs: ['습관 리스트','오늘의 성실도'].map((l, i) => ({label:l, bg: s.sheetPage === i ? '#241a3d' : '#0f0d1c', border: s.sheetPage === i ? '#6d5ec4' : '#2b2545', color: s.sheetPage === i ? '#e8e4f5' : '#9b91c4', pick: () => this.setState({sheetPage:i})})),
+      sheetX: s.sheetPage === 0 ? '0%' : '-50%',
+      todayScore: todayScore, todayPct: Math.round(todayScore / 75 * 100) + '%', checkedText: checked + '/' + Math.min(3, s.habits.length) + ' 체크',
+      homeHabits: homeHabits, scoreRows: scoreRows, goChat: () => this.goTab('chat'),
+
+      // 상점 / 가방
+      isShop: s.tab === 'home' && s.overlay === 'shop', shopItems: shopItems,
+      shopLine: s.shopLine || '어서 와! 비싼 물약일수록 골드당 경험치가 많아. 모아서 한 번에 사는 것도 방법이지.',
+      isBag: s.tab === 'home' && s.overlay === 'bag',
+      bagTabs: [['items','아이템'],['mons','몬스터 ' + s.mons.length]].map(t => ({label:t[1], bg: s.bagTab === t[0] ? '#fff3dc' : '#e0b884', bottom: s.bagTab === t[0] ? '3px solid #fff3dc' : '3px solid #3a1f1a', z: s.bagTab === t[0] ? 2 : 0, border: s.bagTab === t[0] ? '#6d5ec4' : '#2b2545', color: s.bagTab === t[0] ? '#e8e4f5' : '#9b91c4', pick: () => this.setState({bagTab: t[0]})})),
+      bagIsItems: s.bagTab === 'items', bagIsMons: s.bagTab === 'mons',
+      bagItems: ITEMS.map(it => ({name: it.short + ' 물약', count: s.inv[it.id], exp: it.exp, color: it.color, img: it.img})),
+      useBall: () => this.useBall(), ballCant: ballCant,
+      ballBtnBg: ballCant ? '#e0d6bf' : '#b8a8ff', ballBtnShadow: ballCant ? '#b8ab90' : '#6d5ec4', ballBtnColor: ballCant ? '#8a7a6a' : '#2b1a1a', emptySlots: [1,2,3,4],
+      bagSlots: ITEMS.map(it => ({key: it.id, img: it.img, name: it.name, short: it.short + ' 물약', count: s.inv[it.id]}))
+        .concat([{key:'ball', img:'assets/images/items/seongsil_ball.png', name:'성실볼', short:'성실볼', count: s.balls}])
+        .map(x => ({...x, bg: s.bagSel === x.key ? '#ffe58a' : '#f4e2c0', border: s.bagSel === x.key ? '#d94a3d' : '#3a1f1a', pick: () => this.setState({bagSel: x.key})})),
+      bagHasSel: !!s.bagSel, bagNoSel: !s.bagSel,
+      bagSelImg: s.bagSel === 'ball' ? 'assets/images/items/seongsil_ball.png' : (s.bagSel ? ITEMS.find(i => i.id === s.bagSel).img : ''),
+      bagSelName: s.bagSel === 'ball' ? '성실볼' : (s.bagSel ? ITEMS.find(i => i.id === s.bagSel).name : ''),
+      bagSelCount: s.bagSel === 'ball' ? s.balls : (s.bagSel ? s.inv[s.bagSel] : 0),
+      bagSelDesc: s.bagSel === 'ball' ? '챗봇 탐색에서 사용 · 탐색 +1회 (하루 2개)' : (s.bagSel ? '몬스터에게 먹이면 +' + ITEMS.find(i => i.id === s.bagSel).exp + ' EXP' : ''),
+      bagSelEmpty: s.bagSel === 'ball' ? s.balls <= 0 : (s.bagSel ? !s.inv[s.bagSel] : true),
+      bagUseBg: (s.bagSel === 'ball' ? s.balls > 0 : (s.bagSel && s.inv[s.bagSel] > 0)) ? '#ffd24d' : '#e0d6bf',
+      bagUseShadow: (s.bagSel === 'ball' ? s.balls > 0 : (s.bagSel && s.inv[s.bagSel] > 0)) ? '#b27a14' : '#b8ab90',
+      bagUse: () => {
+        if (s.bagSel === 'ball') {
+          const patch = {tab:'chat', overlay:null, bagSel:null};
+          if (s.msgs.length === 0) Object.assign(patch, this.chatStart(s));
+          this.setState(patch); this.toast('탐색할 때 성실볼을 쓸 수 있어요'); return;
+        }
+        const fieldM = s.mons.filter(m => m.where === 'field');
+        const target = fieldM.find(m => m.uid === s.chatMon) || fieldM[0] || s.mons[0];
+        this._last = null; this._rub = 0;
+        this.setState({overlay:'mon', selMon: target.uid, feedOpen: true, petMode: false, pops: [], floats: [], emote: null, jump: 0, rubProg: 0, bagSel: null, monLine: '그거 나 주는 거야?'});
+      },
+      bagMons: bagMons,
+
+      // 몬스터 정보
+      isMon: s.tab === 'home' && s.overlay === 'mon' && !!sel,
+      monName: selSp.name, monLv: sel ? sel.lv : 1, monImg: IMG[selSp.id], monColor: selCat.color, monType: selCat.type, monRarity: selSp.rarity,
+      monStage: stageOf(sel ? sel.lv : 1), monExp: sel ? sel.exp : 0, monPct: Math.round((sel ? sel.exp : 0) / 125 * 100) + '%',
+      monNext: sel ? (sel.lv < 10 ? '1차 진화까지 Lv.' + (10 - sel.lv) : (sel.lv < 20 ? '최종 진화까지 Lv.' + (20 - sel.lv) : '최종형 도달')) : '',
+      monLine: s.monLine || '', hearts: hearts, affText: (sel ? sel.aff : 0) + '/10 · ' + TIER_NAME[tierOf(sel ? sel.aff : 0)] + ' 사이', affColor: TIER_COLOR[tierOf(sel ? sel.aff : 0)], affTextColor: ({low:'#7a6a60', mid:'#2f7fa0', high:'#d94a6a'})[tierOf(sel ? sel.aff : 0)], monIc: CI[selCat.id], monStars: [0,1,2].map(i => ({fill: i < (({'흔함':1,'보통':2,'희귀':3})[selSp.rarity] || 1) ? '#f0b23c' : '#e0d6bf'})),
+      petDone: !!(sel && sel.petted), petNotDone: !(sel && sel.petted),
+      rubPct: Math.round(s.rubProg) + '%',
+      stageRef: el => { this.stageEl = el; },
+      rubMove: e => this.rubAt(e.clientX, e.clientY),
+      rubTouch: e => { const t = e.touches && e.touches[0]; if (t) this.rubAt(t.clientX, t.clientY); },
+      rubLeave: () => { this._last = null; },
+      petMode: s.petMode,
+      toggleHand: () => {
+        if (sel && sel.petted) { this.toast('오늘은 이미 쓰다듬었어요 · 내일 또!'); return; }
+        this._last = null; this._rub = 0; this.setState({petMode: !s.petMode});
+      },
+      handAria: sel && sel.petted ? '오늘 쓰다듬기 완료' : (s.petMode ? '쓰다듬기 그만하기' : '손으로 쓰다듬기'),
+      handLabel: sel && sel.petted ? '내일 또' : (s.petMode ? '그만' : '쓰다듬기'),
+      handLabelColor: s.petMode || (sel && sel.petted) ? '#d8cdb5' : '#ffffff',
+      handDockOp: s.petMode || (sel && sel.petted) ? 0.35 : 1,
+      handX: (s.hand.x - 20) + 'px', handY: (s.hand.y - 22) + 'px', handTilt: (s.tick % 2 ? '-12deg' : '8deg'),
+      stageCursor: s.petMode ? 'none' : 'default', stageTouch: s.petMode ? 'none' : 'auto', stageBorder: s.petMode ? '#f0b23c' : '#2b2545',
+      squishX: s.squish ? 1.08 : 1, squishY: s.squish ? 0.9 : 1, monBob: s.squish ? '0px' : bobY,
+      tapMon: () => this.tapMon(), tapAria: selSp.name + ' 톡 건드리기',
+      monJump: (s.jump || 0) + 'px', shadowOp: s.jump ? 0.1 : 0.18,
+      monCursor: s.petMode ? 'none' : 'pointer', monPE: s.petMode ? 'none' : 'auto',
+      tapHint: !s.petMode && !s.emote,
+      hasEmote: !!s.emote, emotePath: s.emote ? EMO[s.emote][0] : '', emoteColor: s.emote ? EMO[s.emote][1] : '#000',
+      ball: !!s.ball,
+      floatTexts: (s.floats || []).map(f => ({text: f.text, color: f.color, x: f.x + '%', y: f.up ? '30px' : '90px', op: f.up ? 0 : 1})),
+      moodPath: EMO[moodKey][0], moodColor: EMO[moodKey][1], moodText: moodText,
+      actions: [
+        {label:'쓰다듬기', sub: sel && sel.petted ? '오늘 완료' : '하루 1번 · ♥+2', done: !!(sel && sel.petted), on: s.petMode,
+         p1:'M4 2h2v6H4z M6 1h2v7H6z M8 2h2v6H8z M10 3h2v6h-2z M3 7h10v5h-1v2H5v-1H4v-1H3z M1 6h2v1h1v3H3V9H2V8H1z', c1:'#ffe0c2', p2:'M5 11h7v1H5z M5 13h7v1H5z', c2:'#e0a878', p3:'M6 2h1v1H6z', c3:'#ffffff',
+         go: () => { if (sel && sel.petted) { this.toast('오늘은 이미 쓰다듬었어요 · 내일 또!'); return; } this._last = null; this._rub = 0; this.setState({petMode: !s.petMode, feedOpen: false}); }},
+        {label:'간식 주기', sub:'EXP 업', done:false, on: s.feedOpen,
+         p1:'M6 1h4v2h-1v2h3v1h1v8h-1v1H4v-1H3V6h1V5h3V3H6z', c1:'#7fd36b', p2:'M6 1h4v2H6z', c2:'#8a5a2b', p3:'M5 8h2v4H5z', c3:'#ffffffaa',
+         go: () => this.setState({feedOpen: !s.feedOpen, petMode: false})},
+        {label:'놀아주기', sub: sel && sel.played ? '오늘 완료' : '하루 1번 · ♥+1', done: !!(sel && sel.played), on: false,
+         p1:'M5 1h6v1h2v2h1v8h-1v2h-2v1H5v-1H3v-2H2V4h1V2h2z', c1:'#ffffff', p2:'M5 1h6v1h2v2h1v3H2V4h1V2h2z', c2:'#ff8a4c', p3:'M2 7h12v2H2z', c3:'#3a1f1a',
+         go: () => this.playMon()},
+        {label:'말 걸기', sub:'대사 듣기', done:false, on: false,
+         p1:'M1 2h14v9H8v1H7v1H6v1H4v-3H1z', c1:'#fffaf0', p2:'M4 6h2v2H4z M7 6h2v2H7z M10 6h2v2h-2z', c2:'#3a1f1a', p3:'M2 3h3v1H2z', c3:'#ffffff',
+         go: () => this.talkMon()}
+      ].map(a => ({...a, bg: a.on ? '#ffe58a' : '#fffaf0', shadow: a.on ? '0 0 0 #3a1f1a' : '0 4px 0 #c9a46a', lift: a.on ? '3px' : '0px'})),
+      heartPops: s.pops.map(p => ({x: p.x + 'px', y: p.up ? '40px' : '110px', op: p.up ? 0 : 1})),
+      feedOpen: s.feedOpen, toggleFeed: () => this.setState({feedOpen: !s.feedOpen}),
+      feedItems: ITEMS.map(it => { const n = s.inv[it.id];
+        return {short: it.short, count: n, exp: it.exp, cant: !n, color: it.color, img: it.img, bg: n ? '#fffaf0' : '#efe6d2', op: n ? 1 : 0.55, use: () => this.feed(it.id)}; }),
+      monToBag: () => sel && this.moveMon(sel.uid, 'bag'),
+      partnerText: sel && s.chatMon === sel.uid ? '대화 상대 ✓' : '대화 상대로',
+      monPartner: () => { if (!sel) return; this.setState({chatMon: sel.uid, msgs: [], step:'idle'}); this.toast(selSp.name + '와 대화해요'); },
+
+      // 챗봇
+      isChat: s.tab === 'chat',
+      chatMons: s.mons.map(m => ({img: IMG[m.sp], aria: SP[m.sp].name + '와 대화', bg: m.uid === s.chatMon ? '#2f2456' : '#0f0d1c', border: m.uid === s.chatMon ? '#f0b23c' : '#2b2545',
+        pick: () => { if (m.uid === s.chatMon) return; const ns = {...s, chatMon: m.uid}; this.setState({chatMon: m.uid, ...this.chatStart(ns)}); }})),
+      chatAvatar: IMG[chatMon.sp],
+      chatMsgs: s.msgs.map(m => ({avatar: IMG[chatMon.sp], isBot: m.from === 'bot', text: m.text, align: m.from === 'bot' ? 'flex-start' : 'flex-end',
+        border: m.from === 'bot' ? '#6d5ec4' : '#f0b23c', bg: m.from === 'bot' ? '#191533' : '#2a2140',
+        hasReward: !!m.reward, reward: m.reward || '', hasLv: !!m.lvup, lvup: m.lvup || ''})),
+      chatRef: el => { this.chatEl = el; },
+      notExplore: s.step !== 'explore', isExplore: s.step === 'explore',
+      dockStart: s.step === 'idle', dockYN: s.step === 'yn', dockAmount: s.step === 'amount', dockDone: s.step === 'done',
+      sayYes: () => this.answer(true), sayNo: () => this.answer(false),
+      num: s.num, setNum: e => this.setState({num: e.target.value}), sendNum: () => this.sendNum(),
+      unitText: curU, quickNums: quick.map(q => ({label: fmtNum(q) + curU, pick: () => this.sendNum(q)})),
+      restartChat: () => this.setState(this.chatStart(s)),
+      explore: () => this.explore(), noEnc: noEnc,
+      exploreBg: noEnc ? '#191533' : '#2f2456', exploreBorder: noEnc ? '#3a3358' : '#6d5ec4', exploreColor: noEnc ? '#8c7fc0' : '#e8e4f5',
+      encFound: er.type !== 'miss', encMiss: er.type === 'miss', encNew: er.type === 'new', encDup: er.type === 'dup',
+      encImg: erSp ? IMG[erSp.id] : '', encName: erSp ? erSp.name : '',
+      encLine: er.type === 'miss' ? '이번엔 꽝… 성실함이 쌓일수록 더 자주 만나요.' :
+        (er.type === 'dup' ? erSp.name + '을(를) 또 만났어요! 이미 있는 친구라 15G로 바꿨어요.' :
+          '새로운 몬스터 ' + erSp.name + '(' + erSp.rarity + ')을(를) 발견했어요! ' + (er.toField ? '필드에 나왔어요.' : '필드가 꽉 차서 가방에 넣었어요.')),
+      ballOffer: noEnc && s.balls > 0 && s.ballsUsed < 2,
+      encPips: [0,1,2].map(i => ({bg: i < s.enc ? '#7fd36b' : '#cdbf9f'})),
+      rustle: (s.tick % 2 ? '-3px' : '3px'), rustle2: (s.tick % 2 ? '3px' : '-3px'),
+      encGoBg: noEnc ? '#e0d6bf' : '#f0b23c', encGoShadow: noEnc ? '#b8ab90' : '#8a5a1a',
+      encGoLabel: noEnc ? '오늘 탐색 끝!' : '다시 탐색 ▶ (' + s.enc + '회)',
+      leaveExplore: () => this.setState({step:'done'}),
+
+      // 통계
+      isStats: s.tab === 'stats', streakDays: streakDays, bars: bars, weekAvg: weekAvg, catRows: catRows,
+
+      // 도감
+      dexFound: dexFound,
+      catPickTitle: slotsUnlocked > 3 ? '새로운 길이 열렸다!' : '빈 슬롯이 있어요',
+      catPickMsg: slotsUnlocked > 3 ? '도감을 ' + dexFound + '마리 채워서 슬롯이 ' + slotsUnlocked + '칸이 됐어요. 새로 걸을 길을 골라주세요.' : '아직 비어 있는 카테고리 슬롯이 있어요. 걸을 길을 골라주세요.',
+      slotText: s.picked.length + '/' + slotsUnlocked,
+      slotNextText: nextStep ? '도감 ' + dexFound + '/' + nextStep + ' 발견하면 +1' : '모든 슬롯 해금!',
+      slotPct: nextStep ? Math.round((dexFound - prevStep) / (nextStep - prevStep) * 100) + '%' : '100%',
+      slotSteps: SLOT_STEPS.map(n => ({n: n, bg: dexFound >= n ? '#ffd24d' : '#f4ead2', color: dexFound >= n ? '#2b1a1a' : '#9a8a7a'})),
+      canOpenSlot: s.picked.length < slotsUnlocked && s.picked.length < CATS.length,
+      openCatPick: () => this.setState({catPick: true}),
+      isCatPick: s.tab === 'dex' && !!s.catPick, closeCatPick: () => this.setState({catPick: false}),
+      catPickList: CATS.filter(c => s.picked.indexOf(c.id) < 0).map(c => ({ic: CI[c.id], name: c.name, type: c.type, color: c.color, bg: '#f4ead2',
+        pick: () => { this.setState({picked: s.picked.concat([c.id]), catPick: false, dexCat: c.id, dexSel: 0}); this.toast(c.name + ' 길이 열렸어요!'); }})),
+      isDex: s.tab === 'dex', dexTabs: dexTabs, dexSlots: dexSlots, dd: dd, dexTotal: dexTotal,
+      dexColor: dc.color, dexBg: mixHex(dc.color, '#ffffff', 0.62), dexStripe: mixHex(dc.color, '#ffffff', 0.52), dexShade: mixHex(dc.color, '#2b1a1a', 0.45), dexGlyph: dc.glyph, dexIc: CI[dc.id], dexName: dc.name, dexType: dc.type, dexPct: Math.round(dFound / 6 * 100) + '%',
+      dexSub: (dAct ? 'Lv.' + dL.lv : '미등록') + ' · ' + dFound + '/6',
+
+      // 목표
+      isGoals: s.tab === 'goals', goalSections: goalSections,
+      gdT: s.gdraft ? s.gdraft.t : '', gdD: s.gdraft ? s.gdraft.d : '',
+      setGdT: e => this.setState({gdraft: {...s.gdraft, t: e.target.value}}),
+      setGdD: e => this.setState({gdraft: {...s.gdraft, d: e.target.value}}),
+      saveGoal: () => this.saveGoal(), cancelGoal: () => this.setState({gdraft: null})
+    };
+  }
+}
+</script>
+</body>
+</html>

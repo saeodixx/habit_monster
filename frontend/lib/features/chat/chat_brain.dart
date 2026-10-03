@@ -1,0 +1,68 @@
+import 'package:flutter/foundation.dart';
+
+import '../../core/utils/format.dart';
+import '../../data/models.dart';
+import '../../data/results.dart';
+
+/// 챗봇이 "무슨 말을 할지"만 정한다. 게임 규칙(성실도 · 골드 · 레벨)은 [GameState]가 맡는다.
+///
+/// 지금은 [ScriptedChatBrain](시안 대본)을 쓰고, 나중에 AI를 붙이면 이 인터페이스를 구현한
+/// `AiChatBrain`을 만들어 [ChatController]에 넘기면 된다. 모든 메서드가 Future라서 서버 호출을 그대로 넣을 수 있다.
+abstract class ChatBrain {
+  /// 대화를 시작할 때 첫인사. 아직 함께하는 몬스터가 없으면 [partner]는 null.
+  Future<String> greet(MonsterSpecies? partner);
+
+  /// 습관 하나를 했는지 묻기.
+  Future<String> askHabit(Habit habit, HabitCategory category);
+
+  /// "했어!" 다음에 얼마나 했는지 묻기 (O/X가 아닌 습관).
+  Future<String> askAmount(Habit habit, Measure measure);
+
+  /// 기록 결과에 대한 반응.
+  Future<String> react(CheckinResult result);
+
+  /// 오늘 체크를 다 마쳤을 때.
+  Future<String> wrapUp({required int todayScore, required int maxScore});
+
+  /// 탐색에서 몬스터를 잡았을 때 대화창에 남길 말 (잡았을 때만 불린다).
+  Future<String> catchReport(CatchResult result);
+}
+
+/// 시안(prototype-source.dc.html)의 대사를 그대로 쓰는 대본형 챗봇.
+class ScriptedChatBrain implements ChatBrain {
+  const ScriptedChatBrain();
+
+  @override
+  Future<String> greet(MonsterSpecies? partner) => SynchronousFuture(partner == null
+      ? '안녕! 오늘 습관 체크하러 왔어. 탐색에서 첫 친구도 만나보자.'
+      : '안녕! 나 ${partner.name}. 오늘 습관 체크하러 왔어.');
+
+  @override
+  Future<String> askHabit(Habit habit, HabitCategory category) =>
+      SynchronousFuture("[${category.name}] '${habit.name}' 오늘 했어?");
+
+  @override
+  Future<String> askAmount(Habit habit, Measure measure) => SynchronousFuture(
+      '좋아! ${measure.label}은 얼마나 했어? 목표는 ${formatNum(habit.target)}${measure.unit}이야.');
+
+  @override
+  Future<String> react(CheckinResult r) {
+    if (r.alreadyRewarded) return SynchronousFuture('오늘 보상은 이미 받았어. 기록만 고쳐둘게.');
+    if (r.score == 0) return SynchronousFuture('괜찮아, 내일 같이 해보자. 기록해 둘게.');
+    return SynchronousFuture(r.score >= 20 ? '최고야! 오늘 해냈구나.' : '좋아, 조금이라도 한 게 중요해.');
+  }
+
+  @override
+  Future<String> wrapUp({required int todayScore, required int maxScore}) =>
+      SynchronousFuture('오늘 체크 끝! 오늘의 성실도는 $todayScore/$maxScore야. 같이 탐색하러 갈래?');
+
+  @override
+  Future<String> catchReport(CatchResult r) {
+    final name = r.species.name;
+    if (r.kind == CatchKind.duplicate) {
+      return SynchronousFuture('$name${josaEulReul(name)} 또 잡았어! 이미 있는 친구라 ${r.gold}G로 바꿨어.');
+    }
+    return SynchronousFuture('$name${josaEulReul(name)} 잡았어! 새 친구가 생겼네. '
+        '${r.toField ? '필드에서 기다리고 있을 거야.' : '필드가 꽉 차서 가방에 넣어뒀어.'}');
+  }
+}

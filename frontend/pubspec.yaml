@@ -1,0 +1,32 @@
+name: habit_monster
+description: "습관 몬스터 — 습관을 지키면 몬스터가 자라는 앱"
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/monsters/
+    - assets/images/characters/
+    - assets/images/items/
+    - assets/images/backgrounds/
+
+  fonts:
+    - family: Galmuri11
+      fonts:
+        - asset: assets/fonts/Galmuri11.ttf
+        - asset: assets/fonts/Galmuri11-Bold.ttf
+          weight: 700

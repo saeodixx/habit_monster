@@ -1,0 +1,11 @@
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+
+# 로컬 전용
+_to_delete/
+.claude/
+.cc-history/
