@@ -40,6 +40,7 @@ class AppColors {
   // 온보딩 (보라 밤하늘 + 크림 카드)
   static const Color introSky = Color(0xFF1B1438);
   static const Color introFloor = Color(0xFF241A3D);
+  static const Color introFloorDark = Color(0xFF2A1F48); // 인트로 바닥 체크무늬
   static const Color purpleDeep = Color(0xFF2F2456);
   static const Color purpleCard = Color(0xFF3D2F6E);
   static const Color skyDot = Color(0x1FFFFFFF);

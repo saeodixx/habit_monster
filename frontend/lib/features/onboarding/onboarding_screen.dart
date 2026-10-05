@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -8,6 +9,8 @@ import '../../core/theme/app_colors.dart';
 import '../../core/widgets/pixel_widgets.dart';
 import '../../core/widgets/sprite_sheet.dart';
 import '../../data/catalog.dart';
+import '../home/home_parts.dart' show CheckerPainter;
+import 'onboarding_parts.dart' show DotGridPainter;
 import 'onboarding_flow.dart';
 
 /// 온보딩 0단계: 대림대 박사 인트로 (대사 타이핑 + 스프라이트 애니메이션).
@@ -84,43 +87,77 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            // 무대: 화면 가로를 꽉 채운다 (예전엔 Stack이 박사 그림 폭(156px)으로 줄어 바닥 · 실루엣이 깨졌음)
             Expanded(
-              child: Stack(
-                alignment: Alignment.bottomCenter,
-                children: [
-                  // 보라 체크 바닥
-                  Positioned(
-                    left: 0, right: 0, bottom: 0,
-                    child: Container(height: 140, color: const Color(0xFF241A3D)),
-                  ),
-                  // 아직 못 만난 몬스터 실루엣
-                  Positioned(
-                    left: 14, right: 14, bottom: 18,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        for (final a in const [AppAssets.wolf, AppAssets.spark, AppAssets.sprout, AppAssets.moon])
-                          ColorFiltered(
-                            colorFilter: const ColorFilter.mode(Color(0x8C000000), BlendMode.srcIn),
-                            child: PixelImage(a, height: 46),
-                          ),
-                      ],
+              child: LayoutBuilder(builder: (context, box) {
+                final floorH = box.maxHeight * 0.24;
+                // 화면이 낮으면 박사를 줄인다 (머리가 잘리지 않게, 최대 285px)
+                final profH = math.min(285.0, box.maxHeight - 40);
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    const CustomPaint(painter: DotGridPainter()),
+                    // 보라 체크 바닥 (높이 24%, 위 테두리)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: floorH,
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          border: Border(top: BorderSide(color: AppColors.nightLine2, width: 3)),
+                        ),
+                        child: const CustomPaint(painter: CheckerPainter(AppColors.introFloorDark, AppColors.introFloor, cell: 12)),
+                      ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 22),
-                    child: SpriteSheetPlayer(
-                      asset: AppAssets.professorSheet,
-                      columns: AppAssets.professorCols,
-                      rows: AppAssets.professorRows,
-                      frameWidth: AppAssets.professorFrameW,
-                      frameHeight: AppAssets.professorFrameH,
-                      displayHeight: 285,
-                      playing: _isTyping,
+                    // 아직 못 만난 몬스터 실루엣
+                    Positioned(
+                      left: 14,
+                      right: 14,
+                      bottom: 18,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          for (final a in const [AppAssets.wolf, AppAssets.spark, AppAssets.sprout, AppAssets.moon])
+                            Opacity(
+                              opacity: 0.55,
+                              child: ColorFiltered(
+                                colorFilter: const ColorFilter.mode(AppColors.black, BlendMode.srcIn),
+                                child: PixelImage(a, height: 46),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 22,
+                      child: Center(
+                        child: SpriteSheetPlayer(
+                          asset: AppAssets.professorSheet,
+                          columns: AppAssets.professorCols,
+                          rows: AppAssets.professorRows,
+                          frameWidth: AppAssets.professorFrameW,
+                          frameHeight: AppAssets.professorFrameH,
+                          displayHeight: profH,
+                          playing: _isTyping,
+                        ),
+                      ),
+                    ),
+                    // 발밑 그림자
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 16,
+                      child: Center(
+                        child: Container(width: 96, height: 10, color: AppColors.ink.withValues(alpha: 0.25)),
+                      ),
+                    ),
+                  ],
+                );
+              }),
             ),
             Container(
               color: AppColors.nightDeep,
