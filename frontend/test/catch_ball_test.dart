@@ -36,7 +36,8 @@ void main() {
       c.commit(s);
       expect(s.monsters.map((m) => m.speciesId), ['wolf']);
       expect(s.chatPartnerUid, 'm1');
-      expect(s.encounterPool.map((sp) => sp.categoryId).toSet(), {'ex', 'sl'});
+      expect(s.pickedCategories, ['ex', 'sl']);
+      expect(s.discoveredSpecies, {'wolf'});
       c.dispose();
     });
 

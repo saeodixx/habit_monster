@@ -115,7 +115,7 @@ class _ExploreViewState extends State<ExploreView> {
         return '성실볼을 던졌다! 과연…';
       case _Phase.popup:
       case _Phase.done:
-        if (r == null) return '이번엔 아무도 없었어요… 다른 길을 열면 새 몬스터를 만날 수 있어요.';
+        if (r == null) return '이번엔 아무도 없었어요… 오늘 체크인한 길에서 만날 수 있는 몬스터가 없나 봐요.';
         final n = r.species.name;
         switch (r.kind) {
           case CatchKind.escaped:

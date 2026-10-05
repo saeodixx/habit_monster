@@ -33,7 +33,7 @@ class Catalog {
       Measure('자가진단', '점', 4),
     ]),
     HabitCategory(id: 'sl', name: '수면', short: '수면', type: '달빛', color: Color(0xFFA99BF5), measures: [
-      Measure('수면 시간', 'h', 7),
+      Measure('수면 시간', 'h', 7, range: 1),
       Measure('미라클 모닝', 'OX', 1),
     ]),
     HabitCategory(id: 'mn', name: '절약/재테크', short: '절약', type: '금속', color: Color(0xFFC9C6D8), measures: [

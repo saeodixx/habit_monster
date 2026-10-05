@@ -36,7 +36,7 @@ class StepHabits extends StatelessWidget {
           Text('등록한 퀘스트 · ${c.habits.length}개',
               style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.purpleSoft)),
         for (final h in c.habits) _HabitRow(habit: h, onRemove: () => c.removeHabit(h)),
-        const Text('하루 성실도에는 퀘스트 최대 ${Economy.dailyHabitCap}개까지 반영돼요.',
+        const Text('퀘스트는 최대 ${Economy.maxActiveHabits}개 · 하루 성실도에는 점수가 높은 ${Economy.dailyHabitCap}개가 반영돼요.',
             style: TextStyle(fontSize: 9.5, height: 1.8, color: AppColors.textMuted)),
       ],
     );

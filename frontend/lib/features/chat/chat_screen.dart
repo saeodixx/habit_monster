@@ -77,7 +77,8 @@ class _ChatScreenState extends State<ChatScreen> {
       _lastCount = n;
       _lastStep = step;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent);
+        // 거꾸로 쌓는 목록이라 0이 맨 아래(최신 메시지)
+        if (_scroll.hasClients) _scroll.jumpTo(0);
       });
     }
   }
@@ -206,15 +207,20 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _messages(ChatController c) {
     final p = c.partner;
     final avatar = p == null ? AppAssets.seongsilBall : Catalog.speciesById(p.speciesId).asset;
+    // reverse: 최신 메시지가 항상 아래에 붙어 있다 (메시지 높이가 달라도 스크롤 위치를 계산할 필요 없음).
     return ListView(
       controller: _scroll,
+      reverse: true,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       children: [
-        for (final m in c.messages) ...[
-          _Bubble(message: m, avatar: avatar),
+        if (c.busy) ...[
+          _Bubble(message: const ChatMessage.bot('…'), avatar: avatar),
           const SizedBox(height: 10),
         ],
-        if (c.busy) _Bubble(message: const ChatMessage.bot('…'), avatar: avatar),
+        for (final m in c.messages.reversed) ...[
+          const SizedBox(height: 10),
+          _Bubble(message: m, avatar: avatar),
+        ],
       ],
     );
   }
@@ -303,8 +309,6 @@ class _ChatScreenState extends State<ChatScreen> {
         final noEnc = s.encountersLeft <= 0;
         content = Row(
           children: [
-            _DarkButton(label: '다시 체크', onTap: c.start, fontSize: 11.5, expand: false),
-            const SizedBox(width: 9),
 
             Expanded(
               child: Semantics(
@@ -443,13 +447,11 @@ class _GoldButton extends StatelessWidget {
   }
 }
 
-/// 어두운 보조 버튼 ("못 했어", "다시 체크").
+/// 어두운 보조 버튼 ("못 했어").
 class _DarkButton extends StatelessWidget {
-  const _DarkButton({required this.label, required this.onTap, this.fontSize = 12.5, this.expand = true});
+  const _DarkButton({required this.label, required this.onTap});
   final String label;
   final VoidCallback onTap;
-  final double fontSize;
-  final bool expand;
 
   @override
   Widget build(BuildContext context) {
@@ -458,15 +460,15 @@ class _DarkButton extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          width: expand ? double.infinity : null,
+          width: double.infinity,
           constraints: const BoxConstraints(minHeight: 46),
           alignment: Alignment.center,
-          padding: EdgeInsets.symmetric(horizontal: expand ? 12 : 14, vertical: 12),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: AppColors.nightRaised,
             border: Border.all(color: AppColors.nightLine2, width: 3),
           ),
-          child: Text(label, style: TextStyle(fontSize: fontSize, color: AppColors.chatSoftText)),
+          child: Text(label, style: const TextStyle(fontSize: 12.5, color: AppColors.chatSoftText)),
         ),
       ),
     );

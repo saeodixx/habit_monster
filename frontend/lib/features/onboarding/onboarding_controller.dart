@@ -123,6 +123,10 @@ class OnboardingController extends ChangeNotifier {
 
   void addHabit() {
     if (!canAddHabit) return;
+    if (habits.length >= Economy.maxActiveHabits) {
+      onToast('습관 퀘스트는 최대 ${Economy.maxActiveHabits}개까지');
+      return;
+    }
     final h = Habit(
       id: 'oh${_habitSeq++}',
       name: draftName.text.trim(),

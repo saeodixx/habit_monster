@@ -28,8 +28,9 @@ class ChatMessage {
   final String? levelUp;
 }
 
-/// 습관 체크 대화의 흐름. 앞에서부터 [Economy.dailyHabitCap]개 습관을 차례로 묻는다.
-/// 말은 [ChatBrain]이, 규칙 계산은 [GameState]가 한다.
+/// 습관 체크 대화의 흐름. 활성 습관 전부(최대 [Economy.maxActiveHabits]개)를 차례로 묻고,
+/// 답은 확정 전까지 여기에만 임시로 두었다가 마지막에 한 번에 확정한다 (하루 1번, DB Q-4).
+/// 말은 [ChatBrain]이, 규칙 계산(상위 3개 반영 · 골드 · 레벨)은 [GameState]가 한다.
 class ChatController extends ChangeNotifier {
   ChatController({required this.state, this.brain = const ScriptedChatBrain()});
 
@@ -39,6 +40,9 @@ class ChatController extends ChangeNotifier {
   final List<ChatMessage> messages = [];
   ChatStep step = ChatStep.idle;
   int _habitIndex = 0;
+
+  /// 확정 전 임시 답 (습관 id → 값).
+  final Map<String, double> _answers = {};
 
   /// 챗봇이 대답을 만드는 중 (AI 연결 시 입력을 막고 "…"을 보여준다).
   bool busy = false;
@@ -51,7 +55,7 @@ class ChatController extends ChangeNotifier {
 
   bool _disposed = false;
 
-  List<Habit> get _habits => state.countedHabits;
+  List<Habit> get _habits => state.activeHabits;
   Habit? get currentHabit => _habitIndex < _habits.length ? _habits[_habitIndex] : null;
   Measure? get currentMeasure => currentHabit == null ? null : state.measureOf(currentHabit!);
 
@@ -85,13 +89,20 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  /// 대화를 처음부터 (대화 상대가 바뀌거나 "다시 체크").
+  /// 대화를 처음부터 (대화 상대가 바뀌었을 때). 오늘 이미 확정했으면 묻지 않고 탐색으로.
   Future<void> start() async {
     messages.clear();
     encounter = null;
+    _answers.clear();
     final p = partner;
     final sp = p == null ? null : Catalog.speciesById(p.speciesId);
     messages.add(ChatMessage.bot(await _think(brain.greet(sp))));
+    if (state.checkedInToday) {
+      messages.add(ChatMessage.bot(await _think(brain.alreadyCheckedIn())));
+      step = ChatStep.done;
+      _notify();
+      return;
+    }
     await _ask(0);
   }
 
@@ -99,9 +110,8 @@ class ChatController extends ChangeNotifier {
     _habitIndex = i;
     final h = currentHabit;
     if (h == null) {
-      final text = await _think(brain.wrapUp(todayScore: state.todayScore, maxScore: GameState.maxDailyScore));
-      messages.add(ChatMessage.bot(text));
-      step = ChatStep.done;
+      await _confirm();
+      return;
     } else {
       messages.add(ChatMessage.bot(await _think(brain.askHabit(h, Catalog.category(h.categoryId)))));
       step = ChatStep.yesNo;
@@ -137,19 +147,36 @@ class ChatController extends ChangeNotifier {
     await _record(v);
   }
 
+  /// 답 하나를 임시로 적고, 미리 계산한 점수로 반응한다 (골드는 확정 때).
   Future<void> _record(double v) async {
-    final r = state.recordCheckin(currentHabit!, v);
-    final text = await _think(brain.react(r));
-    final rewarded = !r.alreadyRewarded && r.score > 0;
-    final cat = Catalog.category(r.habit.categoryId);
+    final h = currentHabit!;
+    _answers[h.id] = v;
+    final preview = sincerityScore(measure: state.measureOf(h), target: h.target, value: v);
+    messages.add(ChatMessage.bot(await _think(brain.react(h, preview))));
+    await _ask(_habitIndex + 1);
+  }
+
+  /// 마지막 답까지 받으면 한 번에 확정: 상위 3개 반영 · 골드 · 레벨업 · 오늘 탐색 횟수.
+  Future<void> _confirm() async {
+    final r = state.confirmCheckin(_answers);
+    _answers.clear();
+    if (r == null) {
+      step = ChatStep.done;
+      _notify();
+      return;
+    }
+    final text = await _think(brain.wrapUp(r, maxScore: GameState.maxDailyScore));
+    final lv = [
+      for (final e in r.levelUps.entries) '${Catalog.category(e.key).name} Lv.${e.value} 달성!',
+    ];
+    final lvGold = r.goldEarned - r.countedScore * Economy.goldPerSincerity;
     messages.add(ChatMessage.bot(
       text,
-      reward: rewarded ? '성실도 +${r.score} · +${r.score * Economy.goldPerSincerity}G' : null,
-      levelUp: rewarded && r.levelUps > 0
-          ? '${cat.name} Lv.${r.categoryLevel} 달성! +${r.levelUps * Economy.categoryLevelUpGold}G'
-          : null,
+      reward: r.countedScore > 0 ? '성실도 +${r.countedScore} · +${r.countedScore * Economy.goldPerSincerity}G' : null,
+      levelUp: lv.isEmpty ? null : '${lv.join(' · ')} +${lvGold}G',
     ));
-    await _ask(_habitIndex + 1);
+    step = ChatStep.done;
+    _notify();
   }
 
   // ---------- 탐색 ----------

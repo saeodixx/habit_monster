@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/constants/economy.dart';
 import '../../core/state/game_state.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/pixel_icon.dart';
@@ -174,7 +175,8 @@ class _TopBar extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             children: [
-              Text('탐색 ${s.encountersLeft}회 남음', style: const TextStyle(fontSize: 10.5, color: AppColors.gold)),
+              Text(s.checkedInToday ? '탐색 ${s.encountersLeft}회 남음' : '체크인하면 탐색 ${Economy.encountersPerDay}회',
+                  style: const TextStyle(fontSize: 10.5, color: AppColors.gold)),
               const Spacer(),
               CoinChip(text: _fmt(s.gold), big: true),
               const SizedBox(width: 8),

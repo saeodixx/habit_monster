@@ -171,7 +171,7 @@ class _Summary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final countable = math.min(Economy.dailyHabitCap, s.habits.length);
+    final countable = s.activeHabits.length;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
@@ -220,7 +220,7 @@ class _HabitList extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
       children: [
         for (var i = 0; i < s.habits.length; i++) ...[
-          _HabitRow(s: s, habit: s.habits[i], counted: i < Economy.dailyHabitCap),
+          _HabitRow(s: s, habit: s.habits[i], counted: !s.checkedInToday || s.isCounted(s.habits[i])),
           const SizedBox(height: 8),
         ],
         const SizedBox(height: 4),
@@ -238,8 +238,8 @@ class _HabitList extends StatelessWidget {
                 border: Border.all(color: AppColors.goldLight, width: 3),
                 boxShadow: const [BoxShadow(color: AppColors.ink, offset: Offset(4, 4))],
               ),
-              child: const Text('챗봇에게 오늘 습관 체크받기',
-                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.night)),
+              child: Text(s.checkedInToday ? '오늘 체크 완료 · 탐색하러 가기' : '챗봇에게 오늘 습관 체크받기',
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.night)),
             ),
           ),
         ),
@@ -262,8 +262,8 @@ class _HabitRow extends StatelessWidget {
     final meta = '${m.label}${m.isOX ? ' · O/X' : ' · 목표 ${formatNum(habit.target)}${m.unit}'}'
         ' · ${Catalog.periods[habit.periodIndex].$1} ${Catalog.periodMult(habit.periodIndex)}';
     final String state;
-    if (!counted) {
-      state = '반영 안 됨';
+    if (v != null && !counted) {
+      state = '반영 안 됨 (상위 ${Economy.dailyHabitCap}개 밖)';
     } else if (v == null) {
       state = '미체크';
     } else {
@@ -372,7 +372,7 @@ class _ScorePage extends StatelessWidget {
           child: Padding(
             padding: EdgeInsets.all(13),
             child: Text(
-              '성실도 1 = ${Economy.goldPerSincerity}G · 하루 최대 ${Economy.dailyHabitCap}개 습관, ${GameState.maxDailyScore}G까지',
+              '성실도 1 = ${Economy.goldPerSincerity}G · 점수가 높은 습관 ${Economy.dailyHabitCap}개만 반영, 하루 ${GameState.maxDailyScore}G까지',
               style: TextStyle(fontSize: 10, height: 1.8, color: AppColors.textMuted),
             ),
           ),

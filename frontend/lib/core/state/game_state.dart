@@ -17,7 +17,7 @@ class GameState extends ChangeNotifier {
     required this.goals,
     required this.pickedCategories,
     required this.categoryPoints,
-    this.encountersLeft = Economy.encountersPerDay,
+    this.encountersLeft = 0,
     this.streakDays = 0,
     this.dayCount = 1,
     math.Random? random,
@@ -38,11 +38,20 @@ class GameState extends ChangeNotifier {
   final Map<String, int> inventory = {'s': 3, 'm': 1, 'l': 0};
   String? chatPartnerUid;
 
-  /// 오늘 챗봇으로 기록한 값 (습관 id → 값, O/X는 1/0).
+  /// 오늘 확정한 체크인 값 (습관 id → 값, O/X는 1/0). 확정 전엔 비어 있다 (임시값은 챗봇에만).
   final Map<String, double> todayRecords = {};
 
-  /// 오늘 보상을 받은 습관 (id → 그때 성실도). 다시 체크하면 기록만 고친다.
-  final Map<String, int> rewardedToday = {};
+  /// 오늘 점수 상위 [Economy.dailyHabitCap]개로 반영된 습관 id.
+  final Set<String> countedToday = {};
+
+  /// 오늘 체크인을 확정했는지 (하루 1번, 이후 수정 불가 — DB Q-4).
+  bool checkedInToday = false;
+
+  /// 오늘 체크인한 카테고리 = 오늘 탐색 풀 (DB Q-15 `explore_quota_category`).
+  final Set<String> exploreCategoriesToday = {};
+
+  /// 한 번이라도 잡은 종 (DB `monster.dex_entry`). 몬스터를 내보내도 줄지 않는다.
+  final Set<String> discoveredSpecies = {};
 
   /// 디자인 시안과 같은 샘플 데이터 (DAY 12).
   factory GameState.sample({math.Random? random}) {
@@ -71,6 +80,7 @@ class GameState extends ChangeNotifier {
       ],
     );
     s.chatPartnerUid = 'm2';
+    s.discoveredSpecies.addAll(s.monsters.map((m) => m.speciesId));
     return s;
   }
 
@@ -98,7 +108,7 @@ class GameState extends ChangeNotifier {
 
   // ---------- 카테고리 슬롯 ----------
   /// 도감에서 발견한(가진 적 있는) 종 수.
-  int get discoveredCount => monsters.map((m) => m.speciesId).toSet().length;
+  int get discoveredCount => discoveredSpecies.length;
 
   /// 열 수 있는 카테고리 칸 수: 기본 3, 도감 5 · 10 · 15마리마다 +1 (카테고리 수를 넘지 않음).
   int get categorySlotCount =>
@@ -128,7 +138,13 @@ class GameState extends ChangeNotifier {
   /// 하루 성실도 만점 (습관 3개 × 25 = 75).
   static const int maxDailyScore = Economy.dailyHabitCap * Economy.maxSincerityPerHabit;
 
-  List<Habit> get countedHabits => habits.take(Economy.dailyHabitCap).toList();
+  /// 챗봇이 묻는 습관 (활성 습관 전부, 상한 [Economy.maxActiveHabits]).
+  List<Habit> get activeHabits => habits.take(Economy.maxActiveHabits).toList();
+
+  /// 오늘 성실도에 들어간 습관. 확정 전엔 아직 정해지지 않아 앞에서부터 [Economy.dailyHabitCap]개를 보여준다.
+  List<Habit> get countedHabits => checkedInToday
+      ? activeHabits.where((h) => countedToday.contains(h.id)).toList()
+      : activeHabits.take(Economy.dailyHabitCap).toList();
 
   Measure measureOf(Habit h) => Catalog.category(h.categoryId).measures[h.measureIndex];
 
@@ -139,45 +155,73 @@ class GameState extends ChangeNotifier {
     return sincerityScore(measure: measureOf(h), target: h.target, value: v);
   }
 
-  int get todayScore => countedHabits.fold(0, (a, h) => a + (scoreOf(h) ?? 0));
-  int get checkedCount => countedHabits.where((h) => todayRecords.containsKey(h.id)).length;
+  int get todayScore => countedHabits.fold(0, (a, h) => a + (checkedInToday ? (scoreOf(h) ?? 0) : 0));
+  int get checkedCount => activeHabits.where((h) => todayRecords.containsKey(h.id)).length;
 
-  /// 상단 바의 연속 출석 (오늘 하나라도 체크하면 +1).
-  int get currentStreak => streakDays + (checkedCount > 0 ? 1 : 0);
+  /// 상단 바의 연속 출석 (오늘 체크인을 확정하면 +1).
+  int get currentStreak => streakDays + (checkedInToday ? 1 : 0);
 
-  // ---------- 습관 체크 (서버: POST /checkins) ----------
-  /// 습관 하나를 기록한다. 오늘 처음이면 성실도만큼 골드와 카테고리 포인트를 주고,
-  /// 카테고리 레벨이 오르면 레벨당 보너스 골드를 더 준다.
-  CheckinResult recordCheckin(Habit h, double value) {
-    final score = sincerityScore(measure: measureOf(h), target: h.target, value: value);
-    todayRecords[h.id] = value;
-    final already = rewardedToday.containsKey(h.id);
+  /// 이 습관이 오늘 반영됐는지 (확정 후에만 의미 있음).
+  bool isCounted(Habit h) => countedToday.contains(h.id);
+
+  // ---------- 체크인 (서버: POST /checkins) ----------
+  /// 오늘 체크인을 한 번에 확정한다 (하루 1번, 이후 수정 불가). 이미 확정했으면 null.
+  /// [answers]: 습관 id → 값. 점수 상위 [Economy.dailyHabitCap]개만 골드 · 카테고리 EXP에 반영하고,
+  /// 카테고리 레벨이 오르면 레벨당 보너스를 준다. 확정하면 오늘 탐색 횟수와 탐색 풀(체크인한 카테고리)이 생긴다.
+  DailyCheckinResult? confirmCheckin(Map<String, double> answers) {
+    if (checkedInToday || answers.isEmpty) return null;
+    final order = activeHabits.where((h) => answers.containsKey(h.id)).toList();
+    final scored = [
+      for (final h in order) (h, answers[h.id]!, sincerityScore(measure: measureOf(h), target: h.target, value: answers[h.id]!)),
+    ];
+    // 점수 높은 순 (같으면 습관 순서)으로 상위 N개
+    final ranked = [...scored]..sort((a, b) => b.$3.compareTo(a.$3));
+    final counted = ranked.take(Economy.dailyHabitCap).map((e) => e.$1.id).toSet();
+
+    final before = {for (final c in pickedCategories) c: categoryLevel(c).level};
     var gold = 0;
-    var ups = 0;
-    final before = categoryLevel(h.categoryId).level;
-    if (!already) {
-      rewardedToday[h.id] = score;
+    for (final (h, _, score) in scored) {
+      if (!counted.contains(h.id)) continue;
       categoryPoints[h.categoryId] = (categoryPoints[h.categoryId] ?? 0) + score;
-      ups = categoryLevel(h.categoryId).level - before;
-      gold = score * Economy.goldPerSincerity + ups * Economy.categoryLevelUpGold;
-      this.gold += gold;
+      gold += score * Economy.goldPerSincerity;
     }
+    final levelUps = <String, int>{};
+    for (final c in before.keys) {
+      final ups = categoryLevel(c).level - before[c]!;
+      if (ups > 0) {
+        levelUps[c] = categoryLevel(c).level;
+        gold += ups * Economy.categoryLevelUpGold;
+      }
+    }
+    this.gold += gold;
+
+    todayRecords
+      ..clear()
+      ..addAll({for (final e in scored) e.$1.id: e.$2});
+    countedToday
+      ..clear()
+      ..addAll(counted);
+    exploreCategoriesToday
+      ..clear()
+      ..addAll(order.map((h) => h.categoryId));
+    checkedInToday = true;
+    encountersLeft = Economy.encountersPerDay;
     notifyListeners();
-    return CheckinResult(
-      habit: h,
-      value: value,
-      score: score,
+    return DailyCheckinResult(
+      scores: [for (final (h, v, sc) in scored) HabitScore(habit: h, value: v, score: sc, counted: counted.contains(h.id))],
       goldEarned: gold,
-      levelUps: ups,
-      categoryLevel: categoryLevel(h.categoryId).level,
-      alreadyRewarded: already,
+      levelUps: levelUps,
+      exploreCount: Economy.encountersPerDay,
     );
   }
 
   // ---------- 탐색 (서버: POST /explore) ----------
-  /// 지금 탐색에서 만날 수 있는 종: 고른 길이고, 카테고리 레벨이 출현 레벨 이상.
+  /// 지금 탐색에서 만날 수 있는 종: 오늘 체크인한 (열린) 카테고리이고, 카테고리 레벨이 출현 레벨 이상.
   List<MonsterSpecies> get encounterPool => Catalog.species
-      .where((sp) => pickedCategories.contains(sp.categoryId) && sp.unlockLevel <= categoryLevel(sp.categoryId).level)
+      .where((sp) =>
+          exploreCategoriesToday.contains(sp.categoryId) &&
+          pickedCategories.contains(sp.categoryId) &&
+          sp.unlockLevel <= categoryLevel(sp.categoryId).level)
       .toList();
 
   /// 탐색 1회: 고른 길의 몬스터 중 하나를 만난다 (아직 잡은 건 아님). 남은 횟수가 없으면 null.
@@ -206,6 +250,7 @@ class GameState extends ChangeNotifier {
       final toField = fieldMonsters.length < Economy.fieldCapacity;
       final m = OwnedMonster(uid: 'n${monsters.length}_${sp.id}', speciesId: sp.id, inField: toField);
       monsters.add(m);
+      discoveredSpecies.add(sp.id);
       result = CatchResult(kind: CatchKind.newMonster, species: sp, monster: m, toField: toField);
     }
     notifyListeners();
@@ -252,11 +297,13 @@ class GameState extends ChangeNotifier {
       ? Economy.weeklyGoalSlots + (extraWeeklySlot ? 1 : 0)
       : Economy.monthlyGoalSlots;
 
-  /// 달성 체크를 바꾼다. 달성하면 보상 골드, 취소하면 회수.
-  void toggleGoal(Goal g) {
-    g.done = !g.done;
-    gold += g.done ? g.reward : -g.reward;
+  /// 목표 달성 → 보상 골드. 완료한 목표는 되돌릴 수 없다 (DB Q-5). 이미 완료면 false.
+  bool toggleGoal(Goal g) {
+    if (g.done) return false;
+    g.done = true;
+    gold += g.reward;
     notifyListeners();
+    return true;
   }
 
   /// 새 목표. 무료 칸을 다 쓴 뒤의 주간 목표는 유료 슬롯(보상 없음)으로 들어간다.
@@ -275,11 +322,12 @@ class GameState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 지운다. 이미 달성해서 받은 골드는 되돌린다.
-  void deleteGoal(Goal g) {
-    if (g.done) gold -= g.reward;
+  /// 진행 중인 목표를 지운다. 완료한 목표는 지울 수 없다 (DB Q-5). 못 지우면 false.
+  bool deleteGoal(Goal g) {
+    if (g.done) return false;
     goals.remove(g);
     notifyListeners();
+    return true;
   }
 
   void unlockExtraWeeklySlot() {
@@ -313,6 +361,9 @@ class GameState extends ChangeNotifier {
 
     // 고르지 않은 길의 몬스터는 데리고 시작하지 않는다.
     monsters.removeWhere((m) => !pickedCategories.contains(Catalog.speciesById(m.speciesId).categoryId));
+    discoveredSpecies
+      ..clear()
+      ..addAll(monsters.map((m) => m.speciesId));
     if (monsterByUid(chatPartnerUid) == null) chatPartnerUid = monsters.firstOrNull?.uid;
 
     // 첫 파트너를 안 골랐는데 데려갈 몬스터가 하나도 없으면, 고른 길 중 그림이 있는 첫 후보로.
@@ -329,6 +380,7 @@ class GameState extends ChangeNotifier {
           inField: fieldMonsters.length < Economy.fieldCapacity,
         );
         monsters.add(own);
+        discoveredSpecies.add(speciesId);
       }
       chatPartnerUid = own.uid;
     }

@@ -1,37 +1,41 @@
 import 'models.dart';
 
-/// 습관 하나를 기록한 결과. 백엔드 `POST /checkins` 응답과 같은 모양으로 둔다.
-/// 지금은 [GameState.recordCheckin]이 로컬에서 계산하고, 서버를 붙이면 응답을 그대로 이 객체로 바꾸면 된다.
-class CheckinResult {
-  const CheckinResult({
-    required this.habit,
-    required this.value,
-    required this.score,
-    required this.goldEarned,
-    required this.levelUps,
-    required this.categoryLevel,
-    required this.alreadyRewarded,
-  });
-
+/// 습관 하나의 오늘 기록 (DB `habit.habit_checkin`).
+class HabitScore {
+  const HabitScore({required this.habit, required this.value, required this.score, required this.counted});
   final Habit habit;
 
-  /// 기록한 값 (O/X 습관은 1 · 0).
+  /// 기록한 값 ("못 했어" = 0, O/X는 1 · 0).
   final double value;
-
-  /// 이번 기록의 성실도 (0~25).
   final int score;
 
-  /// 이번에 받은 골드 (성실도 + 카테고리 레벨업 보너스). 이미 보상받았으면 0.
+  /// 점수 상위 [Economy.dailyHabitCap]개에 들어 골드 · 카테고리 EXP에 반영됐는지.
+  final bool counted;
+}
+
+/// 하루 1번 일괄 확정한 체크인 결과. 백엔드 `POST /checkins` 응답과 같은 모양 (DB `habit.daily_checkin`).
+/// 지금은 [GameState.confirmCheckin]이 로컬에서 계산하고, 서버를 붙이면 응답을 이 객체로 바꾸면 된다.
+class DailyCheckinResult {
+  const DailyCheckinResult({
+    required this.scores,
+    required this.goldEarned,
+    required this.levelUps,
+    required this.exploreCount,
+  });
+
+  final List<HabitScore> scores;
+
+  /// 받은 골드 (반영 점수 + 카테고리 레벨업 보너스).
   final int goldEarned;
 
-  /// 오른 카테고리 레벨 수.
-  final int levelUps;
+  /// 레벨이 오른 카테고리 → 오른 뒤 레벨.
+  final Map<String, int> levelUps;
 
-  /// 기록 후 카테고리 레벨.
-  final int categoryLevel;
+  /// 오늘 받은 탐색 횟수.
+  final int exploreCount;
 
-  /// 오늘 이 습관 보상을 이미 받았음 (기록만 고침).
-  final bool alreadyRewarded;
+  int get totalScore => scores.fold(0, (a, s) => a + s.score);
+  int get countedScore => scores.where((s) => s.counted).fold(0, (a, s) => a + s.score);
 }
 
 /// 탐색 1회 결과: 몬스터를 만났는지. 백엔드 `POST /explore` 응답과 같은 모양.

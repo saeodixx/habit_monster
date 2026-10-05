@@ -29,8 +29,7 @@ void main() {
     test('오늘의 성실도는 앞 3개 습관만, 75점 만점', () {
       final s = GameState.sample();
       expect(s.todayScore, 0);
-      s.todayRecords['h1'] = 30; // 아침 러닝 30분 / 목표 30 → 20
-      s.todayRecords['h3'] = 4; // 물 4L / 목표 2 → 25 (최대)
+      s.confirmCheckin({'h1': 30, 'h3': 4}); // 러닝 30/30 → 20, 물 4/2 → 25 (최대)
       expect(s.todayScore, 45);
       expect(s.checkedCount, 2);
       expect(GameState.maxDailyScore, 75);
@@ -40,6 +39,8 @@ void main() {
   test('이름 뒤 와/과', () {
     expect(withWa('찌릿 쥐'), '찌릿 쥐와');
     expect(withWa('새싹냥'), '새싹냥과');
+    expect(josaEunNeun('전공 공부'), '는');
+    expect(josaEunNeun('아침 러닝'), '은');
   });
 
   testWidgets('홈: 시트 · 상점 · 가방 · 교감 창', (tester) async {

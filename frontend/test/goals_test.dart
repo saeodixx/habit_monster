@@ -7,20 +7,24 @@ import 'package:habit_monster/features/shell/main_shell.dart';
 
 void main() {
   group('GameState 목표', () {
-    test('달성 체크 시 골드 지급, 취소하면 회수', () {
+    test('달성 체크 시 골드 지급, 완료한 목표는 되돌릴 수 없다 (Q-5)', () {
       final s = GameState.sample();
       final g = s.goalsOf(GoalTier.monthly).single;
-      s.toggleGoal(g);
+      expect(s.toggleGoal(g), isTrue);
       expect(s.gold, 1240 + 150);
-      s.toggleGoal(g);
-      expect(s.gold, 1240);
+      expect(s.toggleGoal(g), isFalse);
+      expect(g.done, isTrue);
+      expect(s.gold, 1240 + 150);
     });
 
-    test('달성한 목표를 지우면 받은 골드를 되돌린다', () {
+    test('완료한 목표는 지울 수 없고, 진행 중인 목표는 지울 수 있다', () {
       final s = GameState.sample();
-      final done = s.goals.firstWhere((g) => g.done); // 주 3회 러닝 (+40 받은 상태)
-      s.deleteGoal(done);
-      expect(s.gold, 1200);
+      final done = s.goals.firstWhere((g) => g.done); // 주 3회 러닝
+      expect(s.deleteGoal(done), isFalse);
+      expect(s.goals, contains(done));
+      final active = s.goals.firstWhere((g) => !g.done);
+      expect(s.deleteGoal(active), isTrue);
+      expect(s.gold, 1240);
     });
 
     test('무료 3칸 뒤의 주간 목표는 유료 슬롯 · 보상 0', () {

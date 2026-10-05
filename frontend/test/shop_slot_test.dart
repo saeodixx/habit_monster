@@ -20,7 +20,7 @@ void main() {
   });
 
   group('카테고리 슬롯', () {
-    test('도감 5마리부터 슬롯 +1, 고른 길은 탐색 풀에 들어간다', () {
+    test('도감 5마리부터 슬롯 +1, 새 길을 열 수 있다', () {
       final s = GameState.sample(); // 3마리 발견, 길 3개
       expect(s.categorySlotCount, 3);
       expect(s.canOpenCategory, isFalse);
@@ -29,10 +29,11 @@ void main() {
         OwnedMonster(uid: 'x1', speciesId: 'chick'),
         OwnedMonster(uid: 'x2', speciesId: 'moon'),
       ]);
+      s.discoveredSpecies.addAll(['chick', 'moon']); // 잡으면 도감에 기록됨 (throwBall이 하는 일)
       expect(s.discoveredCount, 5);
       expect(s.categorySlotCount, 4);
       expect(s.openCategory('sl'), isTrue);
-      expect(s.encounterPool.any((sp) => sp.id == 'moon'), isTrue);
+      expect(s.pickedCategories, contains('sl'));
       expect(s.canOpenCategory, isFalse);
     });
   });
@@ -91,6 +92,7 @@ void main() {
     addTearDown(tester.view.reset);
     final s = GameState.sample();
     s.monsters.addAll([OwnedMonster(uid: 'x1', speciesId: 'chick'), OwnedMonster(uid: 'x2', speciesId: 'moon')]);
+    s.discoveredSpecies.addAll(['chick', 'moon']);
     await tester.pumpWidget(GameScope(notifier: s, child: const MaterialApp(home: MainShell())));
     await tester.tap(find.text('도감'));
     await tester.pump();

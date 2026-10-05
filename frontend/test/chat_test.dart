@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:habit_monster/core/state/game_state.dart';
 import 'package:habit_monster/data/catalog.dart';
+import 'package:habit_monster/data/models.dart';
 import 'package:habit_monster/data/results.dart';
 import 'package:habit_monster/features/shell/main_shell.dart';
 
@@ -22,44 +23,60 @@ class FixedRandom implements Random {
 }
 
 void main() {
-  group('습관 체크 규칙', () {
-    test('처음 기록하면 성실도만큼 골드 · 카테고리 포인트', () {
+  group('체크인 규칙 (하루 1번 일괄 확정)', () {
+    test('점수 상위 3개만 골드 · 카테고리 포인트에 반영', () {
       final s = GameState.sample();
-      final run = s.habits.first; // 아침 러닝 30분 · 운동 64점 = Lv.4 (레벨 곡선 10·20·30·40)
-      final r = s.recordCheckin(run, 30);
-      expect(r.score, 20);
-      expect(r.alreadyRewarded, isFalse);
-      expect(s.todayScore, 20);
-      expect(s.categoryPoints['ex'], 84);
-      expect(r.categoryLevel, 4);
-      expect(r.levelUps, 0);
-      expect(r.goldEarned, 20);
-      expect(s.gold, 1260);
+      s.habits.add(Habit(id: 'h4', name: '스쿼트', categoryId: 'ex', measureIndex: 1, target: 30, periodIndex: 0));
+      // 러닝 30/30 → 20, 공부 0 → 0, 물 3/2 → 25, 스쿼트 15/30 → 10 → 상위 3개: 물 25 · 러닝 20 · 스쿼트 10
+      final r = s.confirmCheckin({'h1': 30, 'h2': 0, 'h3': 3, 'h4': 15})!;
+      expect(r.totalScore, 55);
+      expect(r.countedScore, 55);
+      expect(r.scores.firstWhere((x) => x.habit.id == 'h2').counted, isFalse);
+      expect(s.todayScore, 55);
+      expect(s.categoryPoints['ex'], 64 + 20 + 10);
+      expect(s.categoryPoints['st'], 38);
+      expect(s.gold, 1240 + r.goldEarned);
     });
 
     test('카테고리 레벨이 오르면 레벨당 +20G', () {
       final s = GameState.sample();
       s.categoryPoints['ex'] = 95; // Lv.4, Lv.5까지 5 남음
-      final r = s.recordCheckin(s.habits.first, 30);
-      expect(r.levelUps, 1);
+      final r = s.confirmCheckin({'h1': 30, 'h2': 0, 'h3': 0})!;
+      expect(r.levelUps, {'ex': 5});
       expect(r.goldEarned, 20 + 20);
     });
 
-    test('다시 체크하면 기록만 고치고 보상은 없다', () {
+    test('확정은 하루 1번, 이후엔 수정 불가', () {
       final s = GameState.sample();
-      s.recordCheckin(s.habits.first, 30);
+      s.confirmCheckin({'h1': 30, 'h2': 0, 'h3': 0});
       final gold = s.gold;
-      final r = s.recordCheckin(s.habits.first, 15);
-      expect(r.alreadyRewarded, isTrue);
-      expect(r.goldEarned, 0);
+      expect(s.confirmCheckin({'h1': 60, 'h2': 60, 'h3': 2}), isNull);
       expect(s.gold, gold);
-      expect(s.todayScore, 10);
+      expect(s.todayRecords['h1'], 30);
+    });
+
+    test('확정하면 탐색 3회 + 오늘 체크인한 카테고리가 탐색 풀', () {
+      final s = GameState.sample();
+      expect(s.encountersLeft, 0);
+      expect(s.explore(), isNull); // 체크인 전엔 탐색 불가
+      s.confirmCheckin({'h1': 30}); // 운동만 체크인
+      expect(s.encountersLeft, 3);
+      expect(s.encounterPool.map((sp) => sp.categoryId).toSet(), {'ex'});
+      expect(s.currentStreak, 12);
+    });
+
+    test('수면 시간은 목표 ± 1시간이면 20점 (RANGE)', () {
+      final sleep = Catalog.category('sl').measures.first;
+      expect(sincerityScore(measure: sleep, target: 7, value: 7.5), 20);
+      expect(sincerityScore(measure: sleep, target: 7, value: 6), 20);
+      expect(sincerityScore(measure: sleep, target: 7, value: 9), 0);
+      expect(sincerityScore(measure: sleep, target: 7, value: 0), 0);
     });
   });
 
   group('탐색 · 잡기 규칙', () {
     test('탐색하면 몬스터가 나타나기만 한다 (아직 안 잡음)', () {
-      final s = GameState.sample(random: FixedRandom(double_: 0.9, int_: 2)); // 풀: 늑대, 쥐, 병아리, 새싹냥
+      final s = _checkedIn(GameState.sample(random: FixedRandom(double_: 0.9, int_: 2))); // 풀: 늑대, 쥐, 병아리, 새싹냥
       final e = s.explore()!;
       expect(e.species!.id, 'chick');
       expect(e.alreadyOwned, isFalse);
@@ -69,24 +86,25 @@ void main() {
 
     test('만날 몬스터가 없는 길만 열었으면 아무도 없음', () {
       final s = GameState.sample();
-      s.pickedCategories
-        ..clear()
-        ..addAll(['md', 'mn']);
+      s.habits.add(Habit(id: 'h9', name: '10분 명상', categoryId: 'md', measureIndex: 0, target: 10, periodIndex: 0));
+      s.pickedCategories.add('md');
+      s.confirmCheckin({'h9': 10}); // 명상만 체크인 → 명상 몬스터 없음
       expect(s.explore()!.found, isFalse);
     });
 
     test('던지면 볼 1개를 쓰고 잡으면 새 몬스터', () {
-      final s = GameState.sample(random: FixedRandom(double_: 0.9, int_: 2));
+      final s = _checkedIn(GameState.sample(random: FixedRandom(double_: 0.9, int_: 2)));
       final e = s.explore()!;
       final r = s.throwBall(e.species!)!;
       expect(r.kind, CatchKind.newMonster);
       expect(r.toField, isTrue);
       expect(s.balls, 0);
       expect(s.monsters.length, 4);
+      expect(s.discoveredSpecies, contains('chick'));
     });
 
     test('놓치면 볼만 쓰고 몬스터는 안 생긴다', () {
-      final s = GameState.sample(random: FixedRandom(double_: 0.1, int_: 2));
+      final s = _checkedIn(GameState.sample(random: FixedRandom(double_: 0.1, int_: 2)));
       final r = s.throwBall(s.explore()!.species!)!;
       expect(r.kind, CatchKind.escaped);
       expect(r.caught, isFalse);
@@ -95,15 +113,16 @@ void main() {
     });
 
     test('이미 있는 몬스터를 잡으면 +15G', () {
-      final s = GameState.sample(random: FixedRandom(double_: 0.9, int_: 0)); // 잿불 늑대
+      final s = _checkedIn(GameState.sample(random: FixedRandom(double_: 0.9, int_: 0))); // 잿불 늑대
       final e = s.explore()!;
       expect(e.alreadyOwned, isTrue);
+      final before = s.gold;
       expect(s.throwBall(e.species!)!.kind, CatchKind.duplicate);
-      expect(s.gold, 1255);
+      expect(s.gold, before + 15);
     });
 
     test('볼이 없으면 못 던지고, 탐색 횟수가 없으면 탐색 못 함', () {
-      final s = GameState.sample(random: FixedRandom(double_: 0.9));
+      final s = _checkedIn(GameState.sample(random: FixedRandom(double_: 0.9)));
       s.balls = 0;
       expect(s.throwBall(Catalog.speciesById('chick')), isNull);
       s.encountersLeft = 0;
@@ -124,29 +143,37 @@ void main() {
     expect(find.text('안녕! 나 찌릿 쥐. 오늘 습관 체크하러 왔어.'), findsOneWidget);
     expect(find.text("[운동] '아침 러닝' 오늘 했어?"), findsOneWidget);
 
-    // 아침 러닝: 했어 → 빠른 선택 30분
+    // 체크인 전: 탐색 횟수 없음
+    expect(find.text('체크인하면 탐색 3회'), findsOneWidget);
+
+    // 아침 러닝: 했어 → 빠른 선택 30분 (보상은 아직 — 마지막에 한 번에 확정)
     await tester.tap(find.text('했어!').last); // 말풍선이 아닌 버튼
     await tester.pump();
     expect(find.text('좋아! 운동 시간은 얼마나 했어? 목표는 30분이야.'), findsOneWidget);
     await tester.tap(find.text('30분'));
     await tester.pump();
-    expect(find.text('성실도 +20 · +20G'), findsOneWidget);
+    expect(s.gold, 1240);
+    expect(s.todayRecords, isEmpty);
 
     // 전공 공부: 못 했어
     await tester.tap(find.text('못 했어'));
     await tester.pump();
-    expect(s.todayRecords['h2'], 0); // 전공 공부: 못 함 기록
 
-    // 물 2L: 직접 입력 3
-    await tester.tap(find.text('했어!').last); // 말풍선이 아닌 버튼
+    // 물 2L: 직접 입력 3 → 마지막 답이라 확정
+    await tester.tap(find.text('했어!').last);
     await tester.pump();
     await tester.enterText(find.byType(TextField), '3');
     await tester.tap(find.text('전송'));
     await tester.pump();
     await tester.pump(); // 맨 아래로 스크롤된 프레임
-    expect(find.text('오늘 체크 끝! 오늘의 성실도는 45/75야. 같이 탐색하러 갈래?'), findsOneWidget);
+    expect(find.textContaining('오늘 체크 끝! 오늘의 성실도는 45/75야.'), findsOneWidget);
+    expect(find.text('성실도 +45 · +45G'), findsOneWidget);
     expect(s.todayScore, 45);
+    expect(s.todayRecords['h2'], 0);
+    expect(find.text('식습관/건강 Lv.3 달성! +20G'), findsOneWidget); // 물 25점으로 21 → 46점
+    expect(s.gold, 1240 + 45 + 20);
     expect(find.text('DAY 12 · 연속 12일'), findsOneWidget);
+    expect(find.text('다시 체크'), findsNothing);
 
     await tester.tap(find.text('탐색하기 (3회 남음)'));
     await tester.pump();
@@ -174,3 +201,9 @@ void main() {
   });
 }
 
+
+/// 체크인 확정 (탐색하려면 먼저 필요): 샘플 습관 3개 모두 응답.
+GameState _checkedIn(GameState s) {
+  s.confirmCheckin({'h1': 30, 'h2': 60, 'h3': 2});
+  return s;
+}

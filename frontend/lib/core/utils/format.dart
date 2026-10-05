@@ -19,3 +19,6 @@ String josaEulReul(String name) => _hasBatchim(name) ? '을' : '를';
 
 /// 주격 조사 '이/가'만 돌려준다. 예) josaIGa('새싹냥') → '이'
 String josaIGa(String name) => _hasBatchim(name) ? '이' : '가';
+
+/// 보조사 '은/는'만 돌려준다. 예) josaEunNeun('전공 공부') → '는'
+String josaEunNeun(String name) => _hasBatchim(name) ? '은' : '는';

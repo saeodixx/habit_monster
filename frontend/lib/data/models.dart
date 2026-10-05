@@ -3,12 +3,20 @@ import 'package:flutter/material.dart';
 import '../core/constants/economy.dart';
 
 /// 습관을 무엇으로 셀지 (예: 운동 시간 / 분 / 기본 목표 30).
+/// 점수 방식 (DB `habit.measure_type.scoring_mode`): 목표 대비 비율 · O/X · 목표 ± 범위.
+enum ScoringMode { targetRatio, binary, range }
+
 class Measure {
-  const Measure(this.label, this.unit, this.defaultTarget);
+  const Measure(this.label, this.unit, this.defaultTarget, {this.range});
   final String label;
   final String unit; // 'OX'면 했다/안 했다만 체크
   final double defaultTarget;
+
+  /// 있으면 RANGE 방식: 목표 ± [range] 안이면 만점 (예: 수면 7시간 ± 1).
+  final double? range;
+
   bool get isOX => unit == 'OX';
+  ScoringMode get mode => isOX ? ScoringMode.binary : (range != null ? ScoringMode.range : ScoringMode.targetRatio);
 }
 
 class HabitCategory {
@@ -194,6 +202,8 @@ class CategoryLevel {
 int sincerityScore({required Measure measure, required double target, required double value}) {
   if (measure.isOX) return value > 0 ? 20 : 0;
   if (value <= 0 || target <= 0) return 0;
+  // RANGE: 목표 ± 범위 안이면 20, 벗어나면 0 (04_논리물리모델 F3)
+  if (measure.range != null) return (value - target).abs() <= measure.range! ? 20 : 0;
   final ratio = value / target;
   if (ratio >= 1) {
     return (20 + ((ratio - 1) * 10).round()).clamp(0, Economy.maxSincerityPerHabit);

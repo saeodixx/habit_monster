@@ -80,14 +80,23 @@ class _GoalsScreenState extends State<GoalsScreen> {
   }
 
   void _delete(GameState s) {
-    s.deleteGoal(_editing!);
-    MainShell.of(context).toast('목표를 지웠어요');
+    final shell = MainShell.of(context);
+    if (!s.deleteGoal(_editing!)) {
+      shell.toast('완료한 목표는 지울 수 없어요');
+      return;
+    }
+    shell.toast('목표를 지웠어요');
     _closeDraft();
   }
 
+  /// 달성 체크. 완료한 목표는 되돌릴 수 없다 (DB Q-5).
   void _toggle(GameState s, Goal g) {
-    s.toggleGoal(g);
-    if (g.done) MainShell.of(context).toast('+${g.reward}', coin: true);
+    final shell = MainShell.of(context);
+    if (!s.toggleGoal(g)) {
+      shell.toast('완료한 목표는 되돌릴 수 없어요');
+      return;
+    }
+    shell.toast('+${g.reward}', coin: true);
   }
 
   @override
@@ -254,7 +263,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
           const SizedBox(height: 9),
           Row(
             children: [
-              if (_editing != null) ...[
+              if (_editing != null && !_editing!.done) ...[
                 SizedBox(
                   width: 58,
                   child: PixelButton(

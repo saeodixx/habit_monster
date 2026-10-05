@@ -38,7 +38,7 @@
 
 | 지금 (Flutter, 로컬) | 바꿀 곳 | 돌려주는 모양 |
 | --- | --- | --- |
-| `GameState.recordCheckin(habit, value)` | `POST /checkins` 호출 → 응답을 `CheckinResult`로 | `lib/data/results.dart` |
+| `GameState.confirmCheckin(answers)` | `POST /checkins` 호출 (하루 1번 일괄 확정) → 응답을 `DailyCheckinResult`로 | `lib/data/results.dart` |
 | `GameState.explore()` | `POST /explore` 호출 → `EncounterResult` | 〃 |
 | `GameState.throwBall(species)` | `POST /explore/throw` 호출 → `CatchResult` | 〃 |
 | `GameState.pet / play / feed / buy(item, count:) / toggleGoal / openCategory …` | 각 API 호출 후 응답으로 상태 갱신 | |
@@ -50,8 +50,12 @@
 
 챗봇은 "무슨 말을 할지"(`ChatBrain`)와 "대화 흐름"(`ChatController`)을 나눠 뒀어요.
 
-- `lib/features/chat/chat_brain.dart`의 `ChatBrain` 인터페이스를 구현한 `AiChatBrain`을 만들고
+- `lib/features/chat/chat_brain.dart`의 `ChatBrain` 인터페이스를 구현한 `AiChatBrain`을 만들고 (DB `ai.chat_message`는 사용자 입력을 위젯 값만 허용 — A-1)
   `ChatScreen(controllerBuilder: (s) => ChatController(state: s, brain: AiChatBrain(...)))`로 넘기면 돼요.
 - 모든 대사 메서드가 `Future<String>`이라 LLM 호출을 그대로 넣을 수 있고, 기다리는 동안 화면에 "…" 말풍선이 뜨고 입력이 잠겨요.
 - 보상 계산은 계속 `GameState`(나중엔 서버)가 해요. AI는 말만 하고 숫자는 정하지 않게 두는 게 안전해요.
 - 자유 입력("30분 뛰었어")을 받으려면 `ChatController`에 문장 → 값 해석 단계를 추가하면 돼요 (지금은 버튼/숫자 입력).
+
+## DB 변경안
+
+성실볼을 "던져서 잡는 볼"로 바꾼 v1.4 변경안과 검증 스크립트: [`db/README.md`](db/README.md)
