@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/audio/bgm.dart';
 import '../../core/state/game_state.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/pixel_widgets.dart';
@@ -30,6 +31,9 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   void initState() {
     super.initState();
     _c.addListener(_onChange);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) BgmScope.read(context).play(BgmTrack.intro); // 인트로 곡을 1~3단계까지 이어서
+    });
     _ticker = Timer.periodic(const Duration(milliseconds: 500), (_) {
       if (mounted) setState(() => _tick++);
     });

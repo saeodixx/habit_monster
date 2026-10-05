@@ -171,4 +171,9 @@ class PixelIcons {
     'M1 2h6v1h2V2h6v12H9v1H7v-1H1z M3 4v8h4V4z M9 4v8h4V4z',
     'M1 2h3v3H1z M6 2h9v2H6z M1 7h3v3H1z M6 7h9v2H6z M1 12h3v3H1z M6 12h9v2H6z',
   ];
+
+  /// 배경음악 버튼: 스피커 몸통 + 소리 물결 / 음소거 X.
+  static const String speaker = 'M1 6h3v4H1z M4 5h1v6H4z M5 4h1v8H5z M6 3h2v10H6z';
+  static const String speakerWaves = 'M10 6h1v4h-1z M12 4h1v8h-1z M14 2h1v12h-1z';
+  static const String speakerMute = 'M10 5h2v2h-2z M14 5h2v2h-2z M12 7h2v2h-2z M10 9h2v2h-2z M14 9h2v2h-2z';
 }

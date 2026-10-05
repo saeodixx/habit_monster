@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/audio/bgm.dart';
 import '../../core/constants/app_assets.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/pixel_widgets.dart';
@@ -30,6 +31,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void initState() {
     super.initState();
     _type(0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) BgmScope.read(context).play(BgmTrack.intro);
+    });
   }
 
   void _type(int index) {

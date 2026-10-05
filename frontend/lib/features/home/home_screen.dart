@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../../core/audio/bgm.dart';
 import '../../core/constants/app_assets.dart';
 import '../../core/constants/economy.dart';
 import '../../core/state/game_state.dart';
@@ -58,6 +59,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _monFeedOpen = false;
   String? _monFirstLine;
   String? _shopLine;
+
+  /// 상점(구매 팝업 포함)이 열려 있어 상점 곡을 틀었는지.
+  bool _shopMusic = false;
 
   /// 상점 수량 팝업에 띄운 물건 / 방금 산 것 (구매 완료 팝업).
   ShopItem? _qtyItem;
@@ -209,8 +213,19 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  /// 상점이 열리면 상점 곡, 닫히면 홈 곡으로 (그리기가 끝난 뒤 셸에 알린다).
+  void _syncShopMusic() {
+    final open = _overlay == HomeOverlayKind.shop || _qtyItem != null || _purchase != null;
+    if (open == _shopMusic) return;
+    _shopMusic = open;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) MainShell.maybeOf(context)?.setMusicOverride(MainShell.homeTab, open ? BgmTrack.shop : null);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    _syncShopMusic();
     final s = GameScope.of(context);
     final mons = s.fieldMonsters;
     final sel = s.monsterByUid(_selUid);

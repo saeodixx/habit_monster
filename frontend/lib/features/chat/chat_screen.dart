@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/audio/bgm.dart';
 import '../../core/constants/app_assets.dart';
 import '../../core/state/game_state.dart';
 import '../../core/theme/app_colors.dart';
@@ -36,6 +37,9 @@ class _ChatScreenState extends State<ChatScreen> {
   final _amount = TextEditingController();
   int _lastCount = 0;
   ChatStep? _lastStep;
+
+  /// 탐색 화면이라 탐색 곡을 틀었는지.
+  bool _exploreMusic = false;
   bool _bobUp = false;
   Timer? _ticker;
 
@@ -113,6 +117,14 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final s = GameScope.of(context);
     final c = _c!;
+    // 탐색 중엔 탐색 곡, 돌아오면 챗봇 곡 (그리기가 끝난 뒤 셸에 알린다)
+    final exploring = c.step == ChatStep.explore;
+    if (exploring != _exploreMusic) {
+      _exploreMusic = exploring;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) MainShell.maybeOf(context)?.setMusicOverride(MainShell.chatTab, exploring ? BgmTrack.explore : null);
+      });
+    }
     // 홈 교감 창에서 "대화 상대로"를 눌렀거나 여기서 바꿨으면 대화를 새로 시작.
     if (s.chatPartnerUid != _partnerUid) {
       _partnerUid = s.chatPartnerUid;

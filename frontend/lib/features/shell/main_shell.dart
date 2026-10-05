@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/audio/bgm.dart';
 import '../../core/constants/economy.dart';
 import '../../core/state/game_state.dart';
 import '../../core/theme/app_colors.dart';
@@ -27,6 +28,9 @@ class MainShell extends StatefulWidget {
 
   static MainShellState of(BuildContext context) => context.findAncestorStateOfType<MainShellState>()!;
 
+  /// 셸 밖(단독 테스트 등)에서도 안전하게.
+  static MainShellState? maybeOf(BuildContext context) => context.findAncestorStateOfType<MainShellState>();
+
   @override
   State<MainShell> createState() => MainShellState();
 }
@@ -39,7 +43,37 @@ class MainShellState extends State<MainShell> {
 
   static const _tabs = ['홈', '챗봇', '통계', '도감', '목표'];
 
-  void goTab(int i) => setState(() => _tab = i);
+  /// 탭 안에서 잠깐 바꾸는 곡 (홈의 상점 → 상점 곡, 챗봇의 탐색 → 탐색 곡).
+  final Map<int, BgmTrack> _musicOverrides = {};
+
+  void goTab(int i) {
+    setState(() => _tab = i);
+    _syncMusic();
+  }
+
+  /// [tab] 안의 화면이 곡을 바꾸거나(track) 되돌린다(null). 그 탭이 보일 때만 들린다.
+  void setMusicOverride(int tab, BgmTrack? track) {
+    if (_musicOverrides[tab] == track) return;
+    if (track == null) {
+      _musicOverrides.remove(tab);
+    } else {
+      _musicOverrides[tab] = track;
+    }
+    _syncMusic();
+  }
+
+  /// 챗봇 탭은 챗봇 곡, 나머지 탭은 홈 필드 곡.
+  void _syncMusic() {
+    if (!mounted) return;
+    final base = _tab == MainShell.chatTab ? BgmTrack.chat : BgmTrack.home;
+    BgmScope.read(context).play(_musicOverrides[_tab] ?? base);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncMusic());
+  }
 
   /// 본문 위쪽 가운데에 1.8초 동안 알림을 띄운다. [coin]이면 금화 아이콘을 붙인다.
   void toast(String text, {bool coin = false}) {
@@ -170,6 +204,8 @@ class _TopBar extends StatelessWidget {
               const Spacer(),
               Text('DAY ${s.dayCount} · 연속 ${s.currentStreak}일',
                   style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
+              const SizedBox(width: 6),
+              const _MusicToggle(),
             ],
           ),
           const SizedBox(height: 8),
@@ -184,6 +220,38 @@ class _TopBar extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 배경음악 켜기/끄기 (상단 바 오른쪽 위).
+class _MusicToggle extends StatelessWidget {
+  const _MusicToggle();
+
+  @override
+  Widget build(BuildContext context) {
+    final bgm = BgmScope.of(context);
+    final on = bgm.enabled;
+    return Semantics(
+      button: true,
+      toggled: on,
+      label: on ? '배경음악 끄기' : '배경음악 켜기',
+      excludeSemantics: true,
+      onTap: () => bgm.setEnabled(!on),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => bgm.setEnabled(!on),
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: PixelIcon(
+            layers: [
+              PixelLayer(PixelIcons.speaker, on ? AppColors.textMuted : AppColors.nightLine2),
+              PixelLayer(on ? PixelIcons.speakerWaves : PixelIcons.speakerMute, on ? AppColors.textMuted : AppColors.redSoft),
+            ],
+            size: 16,
+          ),
+        ),
       ),
     );
   }

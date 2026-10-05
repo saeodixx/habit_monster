@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'core/audio/bgm.dart';
 import 'core/state/game_state.dart';
 import 'core/theme/app_theme.dart';
 import 'features/onboarding/onboarding_screen.dart';
@@ -14,10 +15,12 @@ class HabitMonsterApp extends StatefulWidget {
 
 class _HabitMonsterAppState extends State<HabitMonsterApp> {
   final GameState _state = GameState.sample();
+  final Bgm _bgm = AudioBgm();
 
   @override
   void dispose() {
     _state.dispose();
+    _bgm.dispose();
     super.dispose();
   }
 
@@ -25,11 +28,19 @@ class _HabitMonsterAppState extends State<HabitMonsterApp> {
   Widget build(BuildContext context) {
     return GameScope(
       notifier: _state,
-      child: MaterialApp(
-        title: '습관 몬스터',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.build(),
-        home: const OnboardingScreen(),
+      child: BgmScope(
+        notifier: _bgm,
+        // 웹은 사용자가 화면을 누르기 전엔 소리를 막으므로, 첫 터치 때 배경음악을 다시 시도한다.
+        child: Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: (_) => _bgm.unlock(),
+          child: MaterialApp(
+            title: '습관 몬스터',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.build(),
+            home: const OnboardingScreen(),
+          ),
+        ),
       ),
     );
   }
