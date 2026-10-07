@@ -83,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: const PixelImage(AppAssets.logo, fit: BoxFit.cover),
                             ),
                             const SizedBox(height: 22),
-                            const Text('습관 몬스터',
+                            const Text('루틴몬',
                                 style: TextStyle(
                                   fontSize: 30,
                                   fontWeight: FontWeight.w700,

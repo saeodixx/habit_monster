@@ -1,6 +1,6 @@
 {
-    "name": "habit_monster",
-    "short_name": "habit_monster",
+    "name": "루틴몬",
+    "short_name": "루틴몬",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#1b1438",
