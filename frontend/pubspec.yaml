@@ -24,6 +24,7 @@ flutter:
     - assets/images/characters/
     - assets/images/items/
     - assets/images/backgrounds/
+    - assets/images/brand/
     - assets/audio/bgm/
 
   fonts:

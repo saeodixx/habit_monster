@@ -3,12 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/audio/bgm.dart';
+import '../../core/auth/auth_service.dart';
 import '../../core/constants/economy.dart';
 import '../../core/state/game_state.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/pixel_icon.dart';
 import '../../core/widgets/pixel_widgets.dart';
+import '../../core/widgets/popup_card.dart';
 import '../../data/pixel_icons.dart';
+import '../auth/auth_gate.dart';
 import '../chat/chat_screen.dart';
 import '../dex/dex_screen.dart';
 import '../goals/goals_screen.dart';
@@ -205,7 +208,7 @@ class _TopBar extends StatelessWidget {
               Text('DAY ${s.dayCount} · 연속 ${s.currentStreak}일',
                   style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
               const SizedBox(width: 6),
-              const _MusicToggle(),
+              const _SettingsButton(),
             ],
           ),
           const SizedBox(height: 8),
@@ -225,32 +228,129 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-/// 배경음악 켜기/끄기 (상단 바 오른쪽 위).
-class _MusicToggle extends StatelessWidget {
-  const _MusicToggle();
+/// 상단 바 오른쪽 위 톱니바퀴 → 설정 창 (배경음악 · 계정 · 로그아웃).
+class _SettingsButton extends StatelessWidget {
+  const _SettingsButton();
+
+  void _open(BuildContext context) {
+    showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: '설정 닫기',
+      barrierColor: AppColors.black.withValues(alpha: 0),
+      pageBuilder: (ctx, _, __) => _SettingsPopup(shellContext: context),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: '설정',
+      excludeSemantics: true,
+      onTap: () => _open(context),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _open(context),
+        child: const Padding(
+          padding: EdgeInsets.all(4),
+          child: PixelIcon(
+            layers: [
+              PixelLayer(PixelIcons.gear, AppColors.textMuted),
+              PixelLayer(PixelIcons.gearHole, AppColors.nightDeep),
+            ],
+            size: 16,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsPopup extends StatelessWidget {
+  const _SettingsPopup({required this.shellContext});
+  final BuildContext shellContext;
+
+  static const _providerName = {
+    AuthProvider.email: '이메일',
+    AuthProvider.kakao: '카카오',
+    AuthProvider.google: 'Google',
+    AuthProvider.apple: 'Apple',
+  };
+
+  Future<void> _logout(BuildContext context) async {
+    final nav = Navigator.of(context);
+    final auth = AuthScope.maybeRead(context);
+    nav.pop();
+    await auth?.signOut();
+    nav.pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const AuthGate()), (_) => false);
+  }
 
   @override
   Widget build(BuildContext context) {
     final bgm = BgmScope.of(context);
-    final on = bgm.enabled;
-    return Semantics(
-      button: true,
-      toggled: on,
-      label: on ? '배경음악 끄기' : '배경음악 켜기',
-      excludeSemantics: true,
-      onTap: () => bgm.setEnabled(!on),
+    final session = AuthScope.maybeRead(context)?.session;
+    return Material(
+      type: MaterialType.transparency,
       child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => bgm.setEnabled(!on),
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: PixelIcon(
-            layers: [
-              PixelLayer(PixelIcons.speaker, on ? AppColors.textMuted : AppColors.nightLine2),
-              PixelLayer(on ? PixelIcons.speakerWaves : PixelIcons.speakerMute, on ? AppColors.textMuted : AppColors.redSoft),
-            ],
-            size: 16,
-          ),
+        onTap: () => Navigator.of(context).pop(),
+        child: PopupCard(
+          title: '설정',
+          ribbonColor: AppColors.purple,
+          ribbonText: AppColors.white,
+          maxWidth: 290,
+          children: [
+            GestureDetector(
+              onTap: () {}, // 카드 안을 눌러도 닫히지 않게
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text('배경음악',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.brownText)),
+                      ),
+                      SizedBox(
+                        width: 84,
+                        child: PixelButton(
+                          label: bgm.enabled ? '켜짐' : '꺼짐',
+                          semanticLabel: bgm.enabled ? '배경음악 끄기' : '배경음악 켜기',
+                          onPressed: () => bgm.setEnabled(!bgm.enabled),
+                          color: bgm.enabled ? AppColors.green : AppColors.parchment,
+                          shadowColor: bgm.enabled ? AppColors.fieldGreen : AppColors.parchmentShadow,
+                          textColor: AppColors.brownText,
+                          height: 36,
+                          depth: 3,
+                          fontSize: 12,
+                          padding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (session != null) ...[
+                    const SizedBox(height: 14),
+                    Text(
+                      '${_providerName[session.provider]} 계정으로 로그인됨'
+                      '${session.email != null ? '\n${session.email}' : ''}',
+                      style: const TextStyle(fontSize: 11, height: 1.6, color: AppColors.brownMuted),
+                    ),
+                    const SizedBox(height: 10),
+                    PixelButton(
+                      label: '로그아웃',
+                      onPressed: () => _logout(context),
+                      color: AppColors.redSoft,
+                      shadowColor: AppColors.redShadow,
+                      textColor: AppColors.white,
+                      height: 42,
+                      depth: 4,
+                      fontSize: 12,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

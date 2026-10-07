@@ -176,4 +176,9 @@ class PixelIcons {
   static const String speaker = 'M1 6h3v4H1z M4 5h1v6H4z M5 4h1v8H5z M6 3h2v10H6z';
   static const String speakerWaves = 'M10 6h1v4h-1z M12 4h1v8h-1z M14 2h1v12h-1z';
   static const String speakerMute = 'M10 5h2v2h-2z M14 5h2v2h-2z M12 7h2v2h-2z M10 9h2v2h-2z M14 9h2v2h-2z';
+
+  /// 설정 톱니바퀴 (구멍은 배경색으로 한 겹 더).
+  static const String gear =
+      'M7 1h2v2h2V2h1v1h1v1h-1v2h2v2h-2v2h1v1h-1v1h-1v-1h-2v2H7v-2H5v1H4v-1H3v-1h1V9H2V7h2V5H3V4h1V3h1v1h2z';
+  static const String gearHole = 'M7 6h2v1h1v2H9v1H7V9H6V7h1z';
 }

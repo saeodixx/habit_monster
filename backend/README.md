@@ -1,18 +1,12 @@
 # backend
 
-서버 스택은 아직 정하지 않았어요. 후보:
+서버는 **Spring Boot**로 만들어요 (DB: PostgreSQL, 스키마는 공유 폴더의 `database/schema.sql` + `backend/db/`).
 
-| 선택지 | 장점 | 비고 |
-| --- | --- | --- |
-| Firebase (Auth + Firestore + Functions) | 서버 관리 없음, Flutter 연동 쉬움 | 혼자/소규모 팀에 빠름 |
-| Supabase (Postgres + Auth) | SQL, 무료 티어 넉넉 | Flutter SDK 있음 |
-| Spring Boot / NestJS / FastAPI + DB | 수업·포트폴리오용으로 구조를 보여주기 좋음 | 배포 직접 해야 함 |
-
-## API 초안 (스택과 무관)
+## API 초안
 
 | 메서드 | 경로 | 설명 |
 | --- | --- | --- |
-| POST | /auth/signup, /auth/login | 회원가입 · 로그인 |
+| POST | /auth/… | 회원가입 · 로그인 · 소셜 로그인 · 토큰 갱신 · 로그아웃 (아래 "인증 API") |
 | GET | /me | 골드 · 성실볼 · 탐색 남은 횟수 · 연속 출석 |
 | GET/POST/PATCH/DELETE | /habits | 습관 CRUD (카테고리, 측정 방식, 목표량, 기간) |
 | POST | /checkins | 오늘 습관 기록 → 성실도·골드·카테고리 레벨 계산 결과 반환 |
@@ -25,6 +19,71 @@
 | POST | /shop/buy | 물약 · 성실볼 구매 (개수 `count` 포함, 합계 골드는 서버가 계산) |
 | GET/POST/PATCH/DELETE | /goals | 주간(3) · 월간(1) 목표, 달성 체크 시 골드 |
 | GET | /stats | 최근 7일 성실도, 카테고리별 레벨, 출석 |
+
+## 인증 API (Spring Boot)
+
+앱은 `frontend/lib/core/auth/auth_service.dart`의 `AuthService` 인터페이스만 써요.
+지금은 `FakeAuthService`(앱 안에서만 동작)이고, 서버가 생기면 아래 API를 부르는 `HttpAuthService`로 바꾸면 돼요.
+화면(로그인 · 이메일 가입 · 설정의 로그아웃)은 그대로예요.
+
+### 흐름
+
+1. 앱 시작 → 저장된 refresh 토큰이 있으면 `POST /auth/refresh` (자동 로그인), 없으면 로그인 화면
+2. 로그인 성공 → `onboardingDone`이 false면 온보딩, true면 홈
+3. 온보딩 끝 → `PATCH /me/onboarding` (다음 로그인부터 바로 홈)
+4. 설정 → 로그아웃 → `POST /auth/logout` → 로그인 화면
+
+### 엔드포인트
+
+| 메서드 | 경로 | 요청 | 설명 |
+| --- | --- | --- | --- |
+| POST | /auth/signup | `{email, password}` | 이메일 가입. `EMAIL` 자격 생성 + `users.onboarding_step='INTRO'` |
+| POST | /auth/login | `{email, password}` | 이메일 로그인 |
+| POST | /auth/social/{kakao\|google\|apple} | `{token}` | 소셜 로그인. 처음이면 자동 가입 |
+| POST | /auth/refresh | `{refreshToken}` | access 재발급 + refresh 교체(rotation) |
+| POST | /auth/logout | `{refreshToken}` | 그 refresh 토큰 폐기 (`revoked_at`) |
+| GET | /me | (Bearer) | 위 공통 응답의 `user` + 게임 요약 |
+| PATCH | /me/onboarding | `{step: "DONE"}` | 온보딩 완료 |
+
+로그인 계열 응답 (앱의 `AuthSession`과 같은 모양):
+
+```json
+{
+  "accessToken": "eyJ...",
+  "refreshToken": "랜덤 64바이트 base64url",
+  "user": { "id": "123", "provider": "KAKAO", "email": "a@b.com", "nickname": null, "onboardingDone": false }
+}
+```
+
+오류 응답은 `{ "code": "...", "message": "화면에 보여줄 문구" }` — 코드는 앱과 같아요.
+
+| code | HTTP | 언제 |
+| --- | --- | --- |
+| INVALID_EMAIL | 400 | 이메일 형식 오류 |
+| WEAK_PASSWORD | 400 | 비밀번호 8자 미만 (`AuthRules.minPasswordLength`) |
+| EMAIL_TAKEN | 409 | 이미 가입된 이메일 |
+| INVALID_CREDENTIALS | 401 | 이메일/비밀번호 불일치 (어느 쪽이 틀렸는지 알려주지 않음) |
+| INVALID_TOKEN | 401 | 소셜 토큰 검증 실패 · refresh 만료/폐기 |
+
+### 서버가 지킬 것 (DB `identity` 스키마)
+
+- **이메일**: 소문자 + 앞뒤 공백 제거 후 `auth_credential.provider_subject`에 저장. 비밀번호는 **BCrypt**(`password_hash`), 원문 저장·로그 금지.
+- **소셜**: 앱이 보낸 토큰을 서버가 **직접 검증**하고 그 결과의 사용자 ID만 믿어요. 앱이 보낸 이메일·ID는 믿지 않아요.
+  - 카카오: access token → `GET https://kapi.kakao.com/v2/user/me` → `id`
+  - 구글: ID token → 구글 공개키로 서명 · `aud`(우리 클라이언트 ID) · 만료 검증 → `sub`
+  - 애플: identity token → 애플 공개키(JWKS)로 서명 · `aud`(번들 ID) 검증 → `sub`
+  - `provider_subject` = 그 ID. `(provider, provider_subject)`가 없으면 새 `users` + `auth_credential` 생성.
+- **계정 합치지 않기 (Q-20)**: 구글 이메일이 이메일 가입 계정과 같아도 **다른 계정**이에요. 소셜 이메일은 표시용(`auth_credential.email`, 유일하지 않음).
+- **토큰**: access는 JWT 15~30분 (`sub` = users.id). refresh는 랜덤 문자열, DB엔 **SHA-256 hex만** (`refresh_token.token_hash`), 30일.
+  갱신할 때마다 새 refresh를 주고 옛것은 `revoked_at` — 이미 폐기된 refresh가 다시 오면 그 사용자의 refresh를 전부 폐기 (탈취 의심).
+- **탈퇴 사용자**(`status='WITHDRAWN'`)는 로그인 거부. 로그인 성공 시 `auth_credential.last_login_at` 갱신.
+- Spring Security: `/auth/**`만 열고 나머지는 JWT 필터. 의존성 예: `spring-boot-starter-security`, `spring-boot-starter-oauth2-resource-server`(JWT 검증), `jjwt` 또는 Nimbus(발급), 구글/애플 ID 토큰은 Nimbus `JWKSource`로 검증.
+
+### 앱 쪽 남은 일 (서버 붙일 때)
+
+- `HttpAuthService` 구현 + refresh 토큰을 `flutter_secure_storage`에 저장 (`restore()`에서 읽어 `/auth/refresh`)
+- 소셜 SDK로 토큰 받기: `kakao_flutter_sdk_user`, `google_sign_in`, `sign_in_with_apple` — 각 개발자 콘솔의 앱 키 · 번들 ID 등록 필요
+- 다른 API 요청엔 `Authorization: Bearer <accessToken>`, 401이면 한 번 refresh 후 재시도
 
 ## 서버가 꼭 검증해야 하는 것
 

@@ -25,7 +25,7 @@ void main() {
     await tester.pump(const Duration(seconds: 6));
   });
 
-  testWidgets('탭 · 상점 · 탐색에 따라 곡이 바뀌고, 스피커 버튼으로 끈다', (tester) async {
+  testWidgets('탭 · 상점 · 탐색에 따라 곡이 바뀌고, 설정에서 끈다', (tester) async {
     view(tester);
     final bgm = SilentBgm();
     final s = GameState.sample();
@@ -71,8 +71,11 @@ void main() {
     await tester.pump();
     expect(bgm.lastRequested, BgmTrack.chat);
 
-    // 스피커 버튼
+    // 설정 창의 배경음악 버튼
     expect(bgm.enabled, isTrue);
+    await tester.tap(find.bySemanticsLabel('설정'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.bySemanticsLabel('배경음악 끄기'));
     await tester.pump();
     expect(bgm.enabled, isFalse);

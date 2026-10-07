@@ -6,6 +6,7 @@ class AppAssets {
   static const String _characters = 'assets/images/characters';
   static const String _items = 'assets/images/items';
   static const String _bg = 'assets/images/backgrounds';
+  static const String _brand = 'assets/images/brand';
 
   // 몬스터
   static const String wolf = '$_monsters/wolf.png';
@@ -29,6 +30,9 @@ class AppAssets {
   static const String potionMedium = '$_items/potion_medium.png';
   static const String potionLarge = '$_items/potion_large.png';
   static const String seongsilBall = '$_items/seongsil_ball.png';
+
+  // 브랜드 (로그인 화면 로고 = 앱 아이콘)
+  static const String logo = '$_brand/logo.png';
 
   // 배경
   static const String homeField = '$_bg/home_field.png';

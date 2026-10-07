@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/audio/bgm.dart';
+import '../../core/auth/auth_service.dart';
 import '../../core/state/game_state.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/pixel_widgets.dart';
@@ -51,6 +52,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   void _enterHome() {
     _c.commit(GameScope.read(context));
+    AuthScope.maybeRead(context)?.completeOnboarding(); // 다음 로그인부터는 바로 홈
     Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const MainShell()));
   }
 
