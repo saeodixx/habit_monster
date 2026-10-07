@@ -5,7 +5,7 @@ import java.util.Optional;
 
 /**
  * DB {@code identity.auth_provider.code}. 새 제공자(네이버 등)는 DB INSERT + 여기 + SocialVerifier 구현.
- * (애플은 유료 개발자 계정이 필요해 지금은 쓰지 않는다. DB의 APPLE 코드는 그대로 둠.)
+ * (애플은 유료 개발자 계정이 필요해 뺐다 — DB 코드도 없음.)
  */
 public enum AuthProvider {
 	EMAIL, KAKAO, GOOGLE;
