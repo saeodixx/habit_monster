@@ -179,11 +179,11 @@ class AuthApiTest {
 	}
 
 	@Test
-	void 구글_애플은_키_설정_전엔_준비중() throws Exception {
+	void 구글은_키_설정_전엔_준비중_애플은_지원_안함() throws Exception {
 		postJson("/auth/social/google", "{\"token\":\"x\"}")
 			.andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.code").value("SOCIAL_NOT_CONFIGURED"));
 		postJson("/auth/social/apple", "{\"token\":\"x\"}")
-			.andExpect(status().isServiceUnavailable());
+			.andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("UNSUPPORTED_PROVIDER"));
 		given(kakao.verify(anyString())).willThrow(new ApiException(ErrorCode.SOCIAL_NOT_CONFIGURED));
 		postJson("/auth/social/kakao", "{\"token\":\"x\"}").andExpect(status().isServiceUnavailable());
 	}

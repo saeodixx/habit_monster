@@ -29,7 +29,6 @@ curl -X POST localhost:8080/auth/signup -H "Content-Type: application/json" -d '
 | `JWT_SECRET` | access 토큰 서명 키, **32자 이상** 랜덤 문자열 (필수) |
 | `KAKAO_APP_ID` | 카카오 개발자 콘솔의 앱 ID (숫자). 없으면 카카오 로그인은 `SOCIAL_NOT_CONFIGURED` |
 | `GOOGLE_CLIENT_IDS` | 구글 OAuth 클라이언트 ID들, 쉼표로 (Android · iOS · 웹) |
-| `APPLE_AUDIENCES` | iOS 번들 ID (웹 로그인이면 Service ID도), 쉼표로 |
 
 JPA는 테이블을 만들거나 바꾸지 않아요 (`ddl-auto=none`). 스키마는 SQL 파일이 기준이에요.
 
@@ -46,7 +45,7 @@ JPA는 테이블을 만들거나 바꾸지 않아요 (`ddl-auto=none`). 스키�
 ```
 kr.habitmonster
 ├─ auth/            AuthController · AuthService · TokenService · AuthRules · AuthDtos
-│  └─ social/       KakaoVerifier · GoogleVerifier · AppleVerifier (토큰을 서버가 직접 검증)
+│  └─ social/       KakaoVerifier · GoogleVerifier (토큰을 서버가 직접 검증)
 ├─ identity/        identity 스키마 엔티티 (User · AuthCredential · RefreshToken) + 저장소
 ├─ config/          SecurityConfig (/auth/** 만 공개) · JwtConfig · AuthProperties
 └─ common/          ErrorCode · ApiException · ApiExceptionHandler ({code, message} 오류 응답)

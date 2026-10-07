@@ -16,7 +16,7 @@ import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
 /**
- * 구글 · 애플 ID 토큰(JWT) 검증: 제공자 공개키(JWKS)로 서명, 발급자(iss), 대상(aud = 우리 앱), 만료.
+ * OpenID Connect ID 토큰(JWT, 지금은 구글) 검증: 제공자 공개키(JWKS)로 서명, 발급자(iss), 대상(aud = 우리 앱), 만료.
  */
 abstract class OidcIdTokenVerifier implements SocialVerifier {
 

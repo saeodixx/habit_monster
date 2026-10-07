@@ -39,7 +39,7 @@
 | --- | --- | --- | --- |
 | POST | /auth/signup | `{email, password}` | 이메일 가입. `EMAIL` 자격 생성 + `users.onboarding_step='INTRO'` |
 | POST | /auth/login | `{email, password}` | 이메일 로그인 |
-| POST | /auth/social/{kakao\|google\|apple} | `{token}` | 소셜 로그인. 처음이면 자동 가입 |
+| POST | /auth/social/{kakao\|google} | `{token}` | 소셜 로그인. 처음이면 자동 가입 |
 | POST | /auth/refresh | `{refreshToken}` | access 재발급 + refresh 교체(rotation) |
 | POST | /auth/logout | `{refreshToken}` | 그 refresh 토큰 폐기 (`revoked_at`) |
 | GET | /me | (Bearer) | 위 공통 응답의 `user` + 게임 요약 |
@@ -71,18 +71,18 @@
 - **소셜**: 앱이 보낸 토큰을 서버가 **직접 검증**하고 그 결과의 사용자 ID만 믿어요. 앱이 보낸 이메일·ID는 믿지 않아요.
   - 카카오: access token → `GET https://kapi.kakao.com/v2/user/me` → `id`
   - 구글: ID token → 구글 공개키로 서명 · `aud`(우리 클라이언트 ID) · 만료 검증 → `sub`
-  - 애플: identity token → 애플 공개키(JWKS)로 서명 · `aud`(번들 ID) 검증 → `sub`
+  - 애플: 유료 개발자 계정(연 $99)이 필요해 **지금은 지원하지 않음** (`/auth/social/apple` → 404 `UNSUPPORTED_PROVIDER`)
   - `provider_subject` = 그 ID. `(provider, provider_subject)`가 없으면 새 `users` + `auth_credential` 생성.
 - **계정 합치지 않기 (Q-20)**: 구글 이메일이 이메일 가입 계정과 같아도 **다른 계정**이에요. 소셜 이메일은 표시용(`auth_credential.email`, 유일하지 않음).
 - **토큰**: access는 JWT 15~30분 (`sub` = users.id). refresh는 랜덤 문자열, DB엔 **SHA-256 hex만** (`refresh_token.token_hash`), 30일.
   갱신할 때마다 새 refresh를 주고 옛것은 `revoked_at` — 이미 폐기된 refresh가 다시 오면 그 사용자의 refresh를 전부 폐기 (탈취 의심).
 - **탈퇴 사용자**(`status='WITHDRAWN'`)는 로그인 거부. 로그인 성공 시 `auth_credential.last_login_at` 갱신.
-- Spring Security: `/auth/**`만 열고 나머지는 JWT 필터. 의존성 예: `spring-boot-starter-security`, `spring-boot-starter-oauth2-resource-server`(JWT 검증), `jjwt` 또는 Nimbus(발급), 구글/애플 ID 토큰은 Nimbus `JWKSource`로 검증.
+- Spring Security: `/auth/**`만 열고 나머지는 JWT 필터. 의존성 예: `spring-boot-starter-security`, `spring-boot-starter-oauth2-resource-server`(JWT 검증), `jjwt` 또는 Nimbus(발급), 구글 ID 토큰은 Nimbus `JWKSource`로 검증.
 
 ### 앱 쪽 남은 일 (서버 붙일 때)
 
 - `HttpAuthService` 구현 + refresh 토큰을 `flutter_secure_storage`에 저장 (`restore()`에서 읽어 `/auth/refresh`)
-- 소셜 SDK로 토큰 받기: `kakao_flutter_sdk_user`, `google_sign_in`, `sign_in_with_apple` — 각 개발자 콘솔의 앱 키 · 번들 ID 등록 필요
+- 소셜 SDK로 토큰 받기: `kakao_flutter_sdk_user`, `google_sign_in` — 각 개발자 콘솔의 앱 키 · 패키지명 등록 필요
 - 다른 API 요청엔 `Authorization: Bearer <accessToken>`, 401이면 한 번 refresh 후 재시도
 
 ## 서버가 꼭 검증해야 하는 것

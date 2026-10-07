@@ -10,7 +10,7 @@ import '../../core/widgets/pixel_widgets.dart';
 import '../onboarding/onboarding_parts.dart' show DotGridPainter;
 import 'email_auth_screen.dart';
 
-/// 첫 화면: 로고 + 카카오 · 애플 · 구글 · 이메일로 시작하기.
+/// 첫 화면: 로고 + 카카오 · 구글 · 이메일로 시작하기.
 /// 처음 로그인하면 온보딩, 이미 온보딩을 마친 계정이면 바로 홈 ([AuthGate]가 정한다).
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -118,15 +118,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 10),
                         PixelButton(
-                          label: 'Apple로 계속하기',
-                          onPressed: () => _social(AuthProvider.apple),
-                          color: AppColors.black,
-                          shadowColor: AppColors.nightLine2,
-                          textColor: AppColors.white,
-                          height: 48,
-                        ),
-                        const SizedBox(height: 10),
-                        PixelButton(
                           label: 'Google로 계속하기',
                           onPressed: () => _social(AuthProvider.google),
                           color: AppColors.white,
@@ -145,7 +136,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           height: 48,
                         ),
                         const SizedBox(height: 12),
-                        const Text('카카오 · Apple · Google은 처음이면 자동으로 가입돼요',
+                        const Text('카카오 · Google은 처음이면 자동으로 가입돼요',
                             textAlign: TextAlign.center,
                             style: TextStyle(fontSize: 10, color: AppColors.textMuted)),
                       ],

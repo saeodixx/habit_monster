@@ -275,7 +275,6 @@ class _SettingsPopup extends StatelessWidget {
     AuthProvider.email: '이메일',
     AuthProvider.kakao: '카카오',
     AuthProvider.google: 'Google',
-    AuthProvider.apple: 'Apple',
   };
 
   Future<void> _logout(BuildContext context) async {

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 
 /// 로그인 수단 (DB `identity.auth_provider`).
-enum AuthProvider { email, kakao, google, apple }
+enum AuthProvider { email, kakao, google }
 
 /// 로그인된 사용자. 서버 응답(`backend/README.md` 인증 API)과 같은 모양.
 class AuthSession {
@@ -57,7 +57,7 @@ class AuthException implements Exception {
 ///
 /// 지금은 [FakeAuthService](앱 안에서만 동작)를 쓰고, Spring Boot 서버가 생기면
 /// `HttpAuthService`(backend/README.md "인증 API")로 바꾸면 된다.
-/// 카카오 · 구글 · 애플은 각 SDK로 받은 토큰을 서버에 넘기는 부분만 추가하면 된다.
+/// 카카오 · 구글은 각 SDK로 받은 토큰을 서버에 넘기는 부분만 추가하면 된다.
 abstract class AuthService {
   /// 앱을 켤 때 저장된 로그인 복원 (없으면 null).
   Future<AuthSession?> restore();
@@ -65,7 +65,7 @@ abstract class AuthService {
   Future<AuthSession> signUpWithEmail({required String email, required String password});
   Future<AuthSession> signInWithEmail({required String email, required String password});
 
-  /// 카카오 · 구글 · 애플 로그인 (처음이면 자동 가입).
+  /// 카카오 · 구글 로그인 (처음이면 자동 가입).
   Future<AuthSession> signInWithProvider(AuthProvider provider);
 
   /// 온보딩을 끝냈다고 서버에 알린다 (`PATCH /me/onboarding`).
