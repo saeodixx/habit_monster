@@ -71,6 +71,10 @@ class OnboardingController extends ChangeNotifier {
   final List<Habit> habits = [];
   int _habitSeq = 0;
 
+  /// 퀘스트 만들기 단계: 0 무엇을 · 1 얼마나 · 2 언제까지 (시안 habStep).
+  int habStep = 0;
+  static const List<String> habStepLabels = ['무엇을', '얼마나', '언제까지'];
+
   HabitCategory? get draftCat => draftCategory == null ? null : Catalog.category(draftCategory!);
   Measure? get draftMeasureInfo => draftCat?.measures[draftMeasure];
   bool get draftNeedsTarget => draftMeasureInfo != null && !draftMeasureInfo!.isOX;
@@ -78,6 +82,9 @@ class OnboardingController extends ChangeNotifier {
 
   bool get canAddHabit =>
       draftName.text.trim().isNotEmpty && draftCat != null && (!draftNeedsTarget || draftTarget > 0);
+
+  /// 1단계(무엇을)에서 다음으로 갈 수 있는지.
+  bool get hasDraftName => draftName.text.trim().isNotEmpty && draftCat != null;
 
   void _setDraftCategory(String id) {
     draftCategory = id;
@@ -94,7 +101,32 @@ class OnboardingController extends ChangeNotifier {
     draftMeasure = p.$2;
     draftTarget = p.$3;
     draftName.text = p.$1; // 리스너가 notifyListeners 호출
+    habStep = 1; // 추천을 고르면 바로 '얼마나'로
     notifyListeners();
+  }
+
+  void habPrev() {
+    if (habStep == 0) return;
+    habStep--;
+    notifyListeners();
+  }
+
+  /// 다음 ▶ / 마지막 단계에선 퀘스트 등록.
+  void habNext() {
+    switch (habStep) {
+      case 0:
+        if (!hasDraftName) {
+          onToast('습관을 고르거나 적어주세요');
+          return;
+        }
+        habStep = 1;
+        notifyListeners();
+      case 1:
+        habStep = 2;
+        notifyListeners();
+      default:
+        addHabit();
+    }
   }
 
   void pickMeasure(int i) {
@@ -137,6 +169,7 @@ class OnboardingController extends ChangeNotifier {
     );
     habits.add(h);
     draftName.clear();
+    habStep = 0;
     notifyListeners();
     onToast('퀘스트 등록! ${h.name}');
   }

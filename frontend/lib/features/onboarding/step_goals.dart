@@ -58,6 +58,7 @@ class StepGoals extends StatelessWidget {
             ],
           ),
         ),
+        if (c.goalCount > 0) _GoalList(c: c),
         Center(
           child: Semantics(
             button: true,
@@ -207,24 +208,23 @@ class _GoalSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         NumberedLabel(badge: name, title: '', hint: '${list.length}/$cap · $reward', fontSize: 11.5),
-        for (final g in list) ...[
+        if (list.length >= cap) ...[
           const SizedBox(height: 7),
-          Container(
-            padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
-            decoration: BoxDecoration(
-              color: AppColors.parchment,
-              border: Border.all(color: AppColors.ink, width: 3),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(g.title,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.brownText)),
+          // Galmuri에 '✓' 글자가 없어서 픽셀 아이콘으로 그린다.
+          const Text.rich(
+            TextSpan(children: [
+              TextSpan(text: '슬롯을 다 채웠어요 '),
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: PixelIcon(
+                  layers: [PixelLayer(PixelIcons.checkStroke, AppColors.fieldGreen)],
+                  size: 10,
+                  strokeWidth: 3.5,
                 ),
-                const SizedBox(width: 8),
-                DeleteButton(onTap: () => c.removeGoal(tier, g), label: '목표 지우기', size: 32, iconSize: 10),
-              ],
-            ),
+              ),
+              TextSpan(text: ' 아래 목록에서 지울 수 있어요'),
+            ]),
+            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: AppColors.fieldGreen),
           ),
         ],
         if (list.length < cap) ...[
@@ -270,6 +270,74 @@ class _GoalSection extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// 적은 목표 모아 보기 (주간 · 월간 태그 + 보상 + 지우기).
+class _GoalList extends StatelessWidget {
+  const _GoalList({required this.c});
+  final OnboardingController c;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('적은 목표 · ${c.goalCount}개',
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.purpleSoft)),
+          for (final tier in GoalTier.values)
+            for (final g in c.goals[tier]!) ...[
+              const SizedBox(height: 7),
+              _GoalRow(c: c, tier: tier, goal: g),
+            ],
+        ],
+      ),
+    );
+  }
+}
+
+class _GoalRow extends StatelessWidget {
+  const _GoalRow({required this.c, required this.tier, required this.goal});
+  final OnboardingController c;
+  final GoalTier tier;
+  final Goal goal;
+
+  @override
+  Widget build(BuildContext context) {
+    final weekly = tier == GoalTier.weekly;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
+      decoration: BoxDecoration(
+        color: AppColors.parchment,
+        border: Border.all(color: AppColors.ink, width: 3),
+        boxShadow: const [BoxShadow(color: AppColors.ink, offset: Offset(0, 4))],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: weekly ? AppColors.tierMidText : AppColors.goldDeep,
+              border: Border.all(color: AppColors.ink, width: 2),
+            ),
+            child: Text(weekly ? '주간' : '월간',
+                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.white)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(goal.title,
+                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.brownText)),
+          ),
+          const SizedBox(width: 10),
+          Text('+${weekly ? Economy.weeklyGoalGold : Economy.monthlyGoalGold}',
+              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.goldDeep)),
+          const SizedBox(width: 10),
+          DeleteButton(onTap: () => c.removeGoal(tier, goal), label: '목표 지우기', size: 34, iconSize: 10),
+        ],
+      ),
     );
   }
 }

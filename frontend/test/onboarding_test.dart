@@ -58,6 +58,31 @@ void main() {
       expect(c.step, OnboardingStep.goals);
     });
 
+    test('퀘스트 단계: 무엇을 → 얼마나 → 언제까지 → 등록하면 처음으로', () {
+      c.toggleCategory('ex');
+      c.confirmCategories();
+      expect(c.habStep, 0);
+      c.habNext(); // 이름 없음
+      expect(c.habStep, 0);
+      expect(toasts.last, '습관을 고르거나 적어주세요');
+
+      c.draftName.text = '저녁 산책';
+      c.habNext();
+      expect(c.habStep, 1);
+      c.habPrev();
+      expect(c.habStep, 0);
+      c.habNext();
+      c.habNext();
+      expect(c.habStep, 2);
+      c.habNext(); // 등록
+      expect(c.habits.single.name, '저녁 산책');
+      expect(c.habStep, 0);
+      expect(c.draftName.text, '');
+
+      c.pickPreset(('아침 러닝', 0, 30));
+      expect(c.habStep, 1); // 추천은 바로 '얼마나'
+    });
+
     test('목표 칸 수 제한', () {
       for (final t in ['a', 'b', 'c', 'd']) {
         c.goalInputs[GoalTier.weekly]!.text = t;
@@ -103,13 +128,20 @@ void main() {
     await tester.pump();
 
     expect(find.text('STEP 2 / 3 · 습관 퀘스트 만들기'), findsOneWidget);
+    // 1. 무엇을: 추천을 고르면 바로 2. 얼마나
     await tester.tap(find.text('아침 러닝'));
     await tester.pump();
-    await tester.ensureVisible(find.text('퀘스트 등록!'));
+    expect(find.text('하루에 얼마나?'), findsOneWidget);
+    await tester.ensureVisible(find.text('다음 ▶'));
+    await tester.tap(find.text('다음 ▶'));
     await tester.pump();
+    // 3. 언제까지: 요약 확인 후 등록
+    expect(find.text('퀘스트 요약'), findsOneWidget);
+    await tester.ensureVisible(find.text('퀘스트 등록!'));
     await tester.tap(find.text('퀘스트 등록!'));
     await tester.pump();
     expect(find.text('등록한 퀘스트 · 1개'), findsOneWidget);
+    expect(find.text('1. 무엇을'), findsOneWidget); // 다시 처음 단계로
     await tester.tap(find.text('모험 시작 ▶'));
     await tester.pump();
 

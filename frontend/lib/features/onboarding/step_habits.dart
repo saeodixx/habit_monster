@@ -12,10 +12,16 @@ import '../../data/pixel_icons.dart';
 import 'onboarding_controller.dart';
 import 'onboarding_parts.dart';
 
-/// 온보딩 2단계: 습관 퀘스트 만들기.
+/// 온보딩 2단계: 습관 퀘스트 만들기. 무엇을 → 얼마나 → 언제까지 순서로 한 단계씩.
 class StepHabits extends StatelessWidget {
   const StepHabits({super.key, required this.c});
   final OnboardingController c;
+
+  static const _profLines = [
+    '어떤 습관을 키워보겠나? 추천을 고르거나 직접 적어보게!',
+    '좋아! 하루에 얼마나 할지 정해보세.',
+    '마지막이네! 오래 지킬수록 보물상자가 커진다네.',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -30,12 +36,23 @@ class StepHabits extends StatelessWidget {
       ),
       children: [
         const StepHeader(step: 2, title: '습관 퀘스트 만들기'),
-        const ProfessorTip(text: '어떤 습관을 키워보겠나? 추천을 누르면 바로 채워진다네!'),
+        ProfessorTip(text: _profLines[c.habStep]),
         _QuestForm(c: c),
         if (has)
-          Text('등록한 퀘스트 · ${c.habits.length}개',
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.purpleSoft)),
-        for (final h in c.habits) _HabitRow(habit: h, onRemove: () => c.removeHabit(h)),
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('등록한 퀘스트 · ${c.habits.length}개',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.purpleSoft)),
+                for (final h in c.habits) ...[
+                  const SizedBox(height: 7),
+                  _HabitRow(habit: h, onRemove: () => c.removeHabit(h)),
+                ],
+              ],
+            ),
+          ),
         const Text('퀘스트는 최대 ${Economy.maxActiveHabits}개 · 하루 성실도에는 점수가 높은 ${Economy.dailyHabitCap}개가 반영돼요.',
             style: TextStyle(fontSize: 9.5, height: 1.8, color: AppColors.textMuted)),
       ],
@@ -49,157 +66,227 @@ class _QuestForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cat = c.draftCat;
-    final measure = c.draftMeasureInfo;
+    final step = c.habStep;
+    final nextOn = step != 0 || c.hasDraftName;
     return RibbonPanel(
       title: '새 습관 퀘스트',
+      gap: 12,
       children: [
-        // 1. 카테고리
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        _StepTabs(step: step),
+        if (step == 0) ..._what(),
+        if (step == 1) ..._howMuch(),
+        if (step == 2) ..._until(),
+        Row(
           children: [
-            const NumberedLabel(badge: '1', title: '어느 길의 습관?'),
-            const SizedBox(height: 7),
-            Row(
-              children: [
-                for (var i = 0; i < c.picked.length; i++) ...[
-                  if (i > 0) const SizedBox(width: 8),
-                  Expanded(child: _DraftCategoryButton(c: c, id: c.picked[i])),
-                ],
-              ],
+            if (step > 0) ...[
+              SizedBox(
+                width: 84,
+                child: PixelButton(
+                  label: '◀ 이전',
+                  onPressed: c.habPrev,
+                  color: AppColors.parchment,
+                  shadowColor: AppColors.parchmentShadow,
+                  textColor: AppColors.brownText,
+                  height: 48,
+                  depth: 4,
+                  fontSize: 12,
+                  padding: EdgeInsets.zero,
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+            Expanded(
+              child: PixelButton(
+                label: step == 2 ? '퀘스트 등록!' : '다음 ▶',
+                onPressed: nextOn && (step != 2 || c.canAddHabit) ? c.habNext : null,
+                color: AppColors.yellowButton,
+                shadowColor: AppColors.yellowShadow,
+                textColor: AppColors.brownText,
+                disabledTextColor: AppColors.brownText,
+                height: 48,
+                depth: 4,
+              ),
             ),
           ],
         ),
-        if (cat != null && measure != null) ...[
-          // 2. 이름
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const NumberedLabel(badge: '2', title: '어떤 습관?', hint: '추천을 누르거나 직접 적기'),
-              const SizedBox(height: 7),
-              Wrap(
-                spacing: 6,
-                runSpacing: 9,
-                children: [
-                  for (final p in Catalog.habitPresets[cat.id] ?? const <(String, int, double)>[])
-                    _Chip(
-                      label: p.$1,
-                      on: c.draftName.text == p.$1,
-                      onColor: AppColors.butter,
-                      onShadow: AppColors.yellowShadow,
-                      onTap: () => c.pickPreset(p),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 7),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.parchment,
-                  border: Border.all(color: AppColors.ink, width: 3),
-                ),
-                child: Row(
-                  children: [
-                    const PixelIcon(layers: PixelIcons.pencil, size: 16),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: TextField(
-                          controller: c.draftName,
-                          cursorColor: AppColors.brownText,
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.brownText),
-                          decoration: pixelInputDecoration('직접 적어도 돼요').copyWith(labelText: null),
-                          textInputAction: TextInputAction.done,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+      ],
+    );
+  }
+
+  /// 1. 무엇을 — 카테고리 · 추천 목록 · 직접 쓰기
+  List<Widget> _what() {
+    final cat = c.draftCat;
+    return [
+      Row(
+        children: [
+          for (var i = 0; i < c.picked.length; i++) ...[
+            if (i > 0) const SizedBox(width: 6),
+            Expanded(child: _DraftCategoryButton(c: c, id: c.picked[i])),
+          ],
+        ],
+      ),
+      if (cat != null)
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final (i, p) in (Catalog.habitPresets[cat.id] ?? const <(String, int, double)>[]).indexed) ...[
+              if (i > 0) const SizedBox(height: 6),
+              _PresetRow(
+                label: p.$1,
+                hint: cat.measures[p.$2].isOX ? 'O/X' : '${formatNum(p.$3)}${cat.measures[p.$2].unit}',
+                on: c.draftName.text == p.$1,
+                onTap: () => c.pickPreset(p),
               ),
             ],
-          ),
-          // 3. 측정 방식
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const NumberedLabel(badge: '3', title: '무엇으로 셀까?'),
-              const SizedBox(height: 7),
-              Wrap(
-                spacing: 6,
-                runSpacing: 9,
-                children: [
-                  for (var i = 0; i < cat.measures.length; i++)
-                    _Chip(
-                      label: '${cat.measures[i].label} · ${cat.measures[i].isOX ? 'O/X' : cat.measures[i].unit}',
-                      on: c.draftMeasure == i,
-                      onColor: AppColors.skyCard,
-                      onShadow: AppColors.skyCardSelShadow,
-                      onTap: () => c.pickMeasure(i),
-                    ),
-                ],
+          ],
+        ),
+      _DashedBox(
+        child: Row(
+          children: [
+            const Text('직접 쓰기',
+                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: AppColors.brownMuted)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Semantics(
+                  label: '습관 이름',
+                  child: TextField(
+                    controller: c.draftName,
+                    cursorColor: AppColors.brownText,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.brownText),
+                    decoration: pixelInputDecoration('예: 저녁 산책'),
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => c.habNext(),
+                  ),
+                ),
               ),
-            ],
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  /// 2. 얼마나 — 측정 방식 · 하루 목표
+  List<Widget> _howMuch() {
+    final cat = c.draftCat!;
+    final measure = c.draftMeasureInfo!;
+    return [
+      Text(c.draftName.text.trim(),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.brownText)),
+      Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          for (var i = 0; i < cat.measures.length; i++)
+            PressCard(
+              onTap: () => c.pickMeasure(i),
+              color: c.draftMeasure == i ? AppColors.skyCard : AppColors.white,
+              depth: 0,
+              minHeight: 34,
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+              child: Text('${cat.measures[i].label} · ${cat.measures[i].isOX ? 'O/X' : cat.measures[i].unit}',
+                  style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: AppColors.brownText)),
+            ),
+        ],
+      ),
+      if (c.draftNeedsTarget)
+        Column(
+          children: [
+            const Text('하루에 얼마나?', style: TextStyle(fontSize: 10.5, color: AppColors.brownMuted)),
+            const SizedBox(height: 6),
+            _TargetStepper(c: c, unit: measure.unit),
+          ],
+        ),
+      if (c.draftIsOX)
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.parchment,
+            border: Border.all(color: AppColors.ink, width: 3),
           ),
-          // 4. 하루 목표
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const NumberedLabel(badge: '4', title: '하루 목표'),
-              const SizedBox(height: 7),
-              if (c.draftNeedsTarget) _TargetStepper(c: c, unit: measure.unit),
-              if (c.draftIsOX)
+          child: const Text('했으면 O, 못 했으면 X\n매일 챗봇이 물어볼게요',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11.5, height: 1.7, color: AppColors.brownText)),
+        ),
+    ];
+  }
+
+  /// 3. 언제까지 — 기간(보상 상자) · 퀘스트 요약
+  List<Widget> _until() {
+    final cat = c.draftCat!;
+    final m = c.draftMeasureInfo!;
+    final amount = m.isOX ? '${m.label} O/X' : '${m.label} ${formatNum(c.draftTarget)}${m.unit}';
+    final period = '${Catalog.periods[c.draftPeriod].$1} ${Catalog.periodMult(c.draftPeriod)}';
+    return [
+      Row(
+        children: [
+          for (var i = 0; i < Catalog.periods.length; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            Expanded(child: _PeriodButton(c: c, index: i)),
+          ],
+        ],
+      ),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.brownText,
+          border: Border.all(color: AppColors.ink, width: 3),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('퀘스트 요약', style: TextStyle(fontSize: 9.5, color: AppColors.purpleSoft)),
+            const SizedBox(height: 4),
+            Text(c.draftName.text.trim(),
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.butter)),
+            const SizedBox(height: 4),
+            Text('${cat.name} · $amount · $period',
+                style: const TextStyle(fontSize: 10.5, color: AppColors.parchment)),
+          ],
+        ),
+      ),
+    ];
+  }
+}
+
+/// 1. 무엇을 · 2. 얼마나 · 3. 언제까지 진행 막대.
+class _StepTabs extends StatelessWidget {
+  const _StepTabs({required this.step});
+  final int step;
+
+  @override
+  Widget build(BuildContext context) {
+    const labels = OnboardingController.habStepLabels;
+    return Row(
+      children: [
+        for (var i = 0; i < labels.length; i++) ...[
+          if (i > 0) const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              children: [
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  height: 6,
                   decoration: BoxDecoration(
-                    color: AppColors.parchment,
-                    border: Border.all(color: AppColors.ink, width: 3),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: AppColors.green,
-                          border: Border.all(color: AppColors.ink, width: 2),
-                        ),
-                        child: const Text('O',
-                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.brownText)),
-                      ),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: Text('했으면 O, 못 했으면 X — 챗봇이 물어볼게요',
-                            style: TextStyle(fontSize: 11.5, color: AppColors.brownText)),
-                      ),
-                    ],
+                    color: i <= step ? AppColors.gold : AppColors.disabled,
+                    border: Border.all(color: AppColors.ink, width: 2),
                   ),
                 ),
-            ],
-          ),
-          // 5. 기간
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const NumberedLabel(badge: '5', title: '기간 · 끝까지 지키면 보상 상자!'),
-              const SizedBox(height: 7),
-              Row(
-                children: [
-                  for (var i = 0; i < Catalog.periods.length; i++) ...[
-                    if (i > 0) const SizedBox(width: 8),
-                    Expanded(child: _PeriodButton(c: c, index: i)),
-                  ],
-                ],
-              ),
-            ],
+                const SizedBox(height: 4),
+                Text('${i + 1}. ${labels[i]}',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: i == step ? AppColors.brownText : AppColors.slotStepOff,
+                    )),
+              ],
+            ),
           ),
         ],
-        PixelButton(
-          label: '퀘스트 등록!',
-          onPressed: c.canAddHabit ? c.addHabit : null,
-          color: AppColors.yellowButton,
-          shadowColor: AppColors.yellowShadow,
-          textColor: AppColors.brownText,
-        ),
       ],
     );
   }
@@ -221,50 +308,103 @@ class _DraftCategoryButton extends StatelessWidget {
       depth: 4,
       color: cur ? AppColors.butter : AppColors.parchment,
       shadowColor: AppColors.tanShadow,
-      minHeight: 66,
-      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+      minHeight: 44,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
       semanticLabel: cat.name,
-      child: Column(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CategoryIcon(id, size: 28),
-          const SizedBox(height: 4),
-          Text(cat.short,
-              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: AppColors.brownText)),
+          CategoryIcon(id, size: 18, outline: 0),
+          const SizedBox(width: 5),
+          Text(cat.short, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.brownText)),
         ],
       ),
     );
   }
 }
 
-/// 추천 / 측정 방식 칩 (그림자 3px).
-class _Chip extends StatelessWidget {
-  const _Chip({
-    required this.label,
-    required this.on,
-    required this.onColor,
-    required this.onShadow,
-    required this.onTap,
-  });
+/// 추천 습관 한 줄: 이름 · 기본 목표 · ▶
+class _PresetRow extends StatelessWidget {
+  const _PresetRow({required this.label, required this.hint, required this.on, required this.onTap});
   final String label;
+  final String hint;
   final bool on;
-  final Color onColor;
-  final Color onShadow;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return PressCard(
       onTap: onTap,
-      color: on ? onColor : AppColors.white,
-      shadowColor: on ? onShadow : AppColors.chipShadow,
-      depth: 3,
-      minHeight: 36,
+      color: on ? AppColors.butter : AppColors.white,
+      depth: 0,
+      minHeight: 44,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      child: Text(label,
-          style: const TextStyle(fontSize: 11, height: 1.5, fontWeight: FontWeight.w700, color: AppColors.brownText)),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(label,
+                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.brownText)),
+          ),
+          const SizedBox(width: 8),
+          Text(hint, style: const TextStyle(fontSize: 10, color: AppColors.brownMuted)),
+          const SizedBox(width: 8),
+          const Text('▶', style: TextStyle(fontSize: 12, color: AppColors.red)),
+        ],
+      ),
     );
   }
+}
+
+/// 점선 테두리 상자 (직접 쓰기 칸).
+class _DashedBox extends StatelessWidget {
+  const _DashedBox({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: const _DashedBorderPainter(),
+      child: Container(
+        color: AppColors.parchment,
+        margin: const EdgeInsets.all(3),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _DashedBorderPainter extends CustomPainter {
+  const _DashedBorderPainter();
+
+  static const double _w = 3;
+  static const double _dash = 9;
+  static const double _gap = 6;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = AppColors.ink;
+    void hLine(double y) {
+      for (var x = 0.0; x < size.width; x += _dash + _gap) {
+        canvas.drawRect(Rect.fromLTWH(x, y, (size.width - x).clamp(0, _dash), _w), paint);
+      }
+    }
+
+    void vLine(double x) {
+      for (var y = 0.0; y < size.height; y += _dash + _gap) {
+        canvas.drawRect(Rect.fromLTWH(x, y, _w, (size.height - y).clamp(0, _dash)), paint);
+      }
+    }
+
+    hLine(0);
+    hLine(size.height - _w);
+    vLine(0);
+    vLine(size.width - _w);
+  }
+
+  @override
+  bool shouldRepaint(_DashedBorderPainter oldDelegate) => false;
 }
 
 class _TargetStepper extends StatelessWidget {
@@ -277,7 +417,7 @@ class _TargetStepper extends StatelessWidget {
     return Row(
       children: [
         SizedBox(
-          width: 48,
+          width: 52,
           child: PixelButton(
             label: '−',
             semanticLabel: '목표 줄이기',
@@ -285,9 +425,9 @@ class _TargetStepper extends StatelessWidget {
             color: AppColors.skyCard,
             shadowColor: AppColors.skyCardShadow,
             textColor: AppColors.brownText,
-            height: 48,
+            height: 52,
             depth: 4,
-            fontSize: 22,
+            fontSize: 24,
             padding: EdgeInsets.zero,
             // Galmuri에 '−' 글자가 없어서 막대로 그린다.
             child: Container(width: 14, height: 4, color: AppColors.brownText),
@@ -296,7 +436,7 @@ class _TargetStepper extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: Container(
-            height: 48,
+            height: 52,
             decoration: BoxDecoration(
               color: AppColors.brownText,
               border: Border.all(color: AppColors.ink, width: 3),
@@ -306,16 +446,16 @@ class _TargetStepper extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(formatNum(c.draftTarget),
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.butter)),
+                    style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: AppColors.butter)),
                 const SizedBox(width: 6),
-                Text(unit, style: const TextStyle(fontSize: 12, color: AppColors.parchment)),
+                Text(unit, style: const TextStyle(fontSize: 13, color: AppColors.parchment)),
               ],
             ),
           ),
         ),
         const SizedBox(width: 10),
         SizedBox(
-          width: 48,
+          width: 52,
           child: PixelButton(
             label: '+',
             semanticLabel: '목표 늘리기',
@@ -323,9 +463,9 @@ class _TargetStepper extends StatelessWidget {
             color: AppColors.yellowButton,
             shadowColor: AppColors.yellowShadow,
             textColor: AppColors.brownText,
-            height: 48,
+            height: 52,
             depth: 4,
-            fontSize: 22,
+            fontSize: 24,
             padding: EdgeInsets.zero,
           ),
         ),
@@ -352,7 +492,7 @@ class _PeriodButton extends StatelessWidget {
       depth: 4,
       color: on ? AppColors.butter : AppColors.parchment,
       shadowColor: AppColors.tanShadow,
-      minHeight: 84,
+      minHeight: 92,
       padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -361,7 +501,7 @@ class _PeriodButton extends StatelessWidget {
             height: _chestSizes.last,
             child: Align(
               alignment: Alignment.bottomCenter,
-              child: PixelIcon(layers: PixelIcons.chest(lid, body, band), size: _chestSizes[index], outline: 1.5),
+              child: PixelIcon(layers: PixelIcons.chest(lid, body, band, highlight: false), size: _chestSizes[index], outline: 1.5),
             ),
           ),
           const SizedBox(height: 3),
@@ -396,7 +536,7 @@ class _HabitRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          CategoryIcon(habit.categoryId, size: 26),
+          CategoryIcon(habit.categoryId, size: 24),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -410,7 +550,7 @@ class _HabitRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          DeleteButton(onTap: onRemove, label: '퀘스트 삭제'),
+          DeleteButton(onTap: onRemove, label: '퀘스트 삭제', size: 36, iconSize: 11),
         ],
       ),
     );
