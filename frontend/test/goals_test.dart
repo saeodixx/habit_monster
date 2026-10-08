@@ -8,7 +8,7 @@ import 'package:habit_monster/features/shell/main_shell.dart';
 void main() {
   group('GameState 목표', () {
     test('달성 체크 시 골드 지급, 완료한 목표는 되돌릴 수 없다 (Q-5)', () {
-      final s = GameState.sample();
+      final s = GameState.sample(gold: 1240, balls: 1);
       final g = s.goalsOf(GoalTier.monthly).single;
       expect(s.toggleGoal(g), isTrue);
       expect(s.gold, 1240 + 150);
@@ -18,7 +18,7 @@ void main() {
     });
 
     test('완료한 목표는 지울 수 없고, 진행 중인 목표는 지울 수 있다', () {
-      final s = GameState.sample();
+      final s = GameState.sample(gold: 1240, balls: 1);
       final done = s.goals.firstWhere((g) => g.done); // 주 3회 러닝
       expect(s.deleteGoal(done), isFalse);
       expect(s.goals, contains(done));
@@ -28,7 +28,7 @@ void main() {
     });
 
     test('무료 3칸 뒤의 주간 목표는 유료 슬롯 · 보상 0', () {
-      final s = GameState.sample(); // 주간 2개
+      final s = GameState.sample(gold: 1240, balls: 1); // 주간 2개
       final third = s.addGoal(GoalTier.weekly, '세 번째', '');
       expect(third.reward, 40);
       expect(s.capOf(GoalTier.weekly), 3);
@@ -44,7 +44,7 @@ void main() {
     tester.view.physicalSize = const Size(390, 1200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final s = GameState.sample();
+    final s = GameState.sample(gold: 1240, balls: 1);
     await tester.pumpWidget(GameScope(notifier: s, child: const MaterialApp(home: MainShell())));
     await tester.tap(find.text('목표'));
     await tester.pump();

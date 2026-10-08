@@ -54,11 +54,15 @@ class GameState extends ChangeNotifier {
   final Set<String> discoveredSpecies = {};
 
   /// 디자인 시안과 같은 샘플 데이터 (DAY 12).
-  factory GameState.sample({math.Random? random}) {
+  factory GameState.sample({
+    math.Random? random,
+    int gold = Economy.startingGold,
+    int balls = Economy.startingBalls,
+  }) {
     final s = GameState(
       random: random,
-      gold: 1240,
-      balls: 1,
+      gold: gold,
+      balls: balls,
       streakDays: 11,
       dayCount: 12,
       pickedCategories: ['ex', 'st', 'fd'],

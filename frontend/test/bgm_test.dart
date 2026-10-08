@@ -17,7 +17,7 @@ void main() {
     view(tester);
     final bgm = SilentBgm();
     await tester.pumpWidget(GameScope(
-      notifier: GameState.sample(),
+      notifier: GameState.sample(gold: 1240, balls: 1),
       child: BgmScope(notifier: bgm, child: const MaterialApp(home: OnboardingScreen())),
     ));
     await tester.pump();
@@ -28,7 +28,7 @@ void main() {
   testWidgets('탭 · 상점 · 탐색에 따라 곡이 바뀌고, 설정에서 끈다', (tester) async {
     view(tester);
     final bgm = SilentBgm();
-    final s = GameState.sample();
+    final s = GameState.sample(gold: 1240, balls: 1);
     await tester.pumpWidget(GameScope(
       notifier: s,
       child: BgmScope(notifier: bgm, child: const MaterialApp(home: MainShell())),

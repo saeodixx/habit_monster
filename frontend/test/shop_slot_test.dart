@@ -10,7 +10,7 @@ import 'package:habit_monster/features/shell/main_shell.dart';
 void main() {
   group('여러 개 사기', () {
     test('합계만큼 골드가 빠지고 개수만큼 들어온다', () {
-      final s = GameState.sample();
+      final s = GameState.sample(gold: 1240, balls: 1);
       expect(s.buy(Catalog.items.first, count: 5), isTrue); // 하급 20G × 5
       expect(s.gold, 1140);
       expect(s.inventory['s'], 8);
@@ -21,7 +21,7 @@ void main() {
 
   group('카테고리 슬롯', () {
     test('도감 5마리부터 슬롯 +1, 새 길을 열 수 있다', () {
-      final s = GameState.sample(); // 3마리 발견, 길 3개
+      final s = GameState.sample(gold: 1240, balls: 1); // 3마리 발견, 길 3개
       expect(s.categorySlotCount, 3);
       expect(s.canOpenCategory, isFalse);
       expect(s.openCategory('sl'), isFalse);
@@ -42,7 +42,7 @@ void main() {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final s = GameState.sample();
+    final s = GameState.sample(gold: 1240, balls: 1);
     await tester.pumpWidget(GameScope(notifier: s, child: const MaterialApp(home: MainShell())));
     await tester.tap(find.bySemanticsLabel('상점'));
     await tester.pump();
@@ -67,7 +67,7 @@ void main() {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final s = GameState.sample()..gold = 500;
+    final s = GameState.sample(gold: 1240, balls: 1)..gold = 500;
     await tester.pumpWidget(GameScope(notifier: s, child: const MaterialApp(home: MainShell())));
     await tester.tap(find.bySemanticsLabel('상점'));
     await tester.pump();
@@ -90,7 +90,7 @@ void main() {
     tester.view.physicalSize = const Size(390, 1600);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final s = GameState.sample();
+    final s = GameState.sample(gold: 1240, balls: 1);
     s.monsters.addAll([OwnedMonster(uid: 'x1', speciesId: 'chick'), OwnedMonster(uid: 'x2', speciesId: 'moon')]);
     s.discoveredSpecies.addAll(['chick', 'moon']);
     await tester.pumpWidget(GameScope(notifier: s, child: const MaterialApp(home: MainShell())));

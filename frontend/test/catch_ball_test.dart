@@ -28,7 +28,7 @@ Future<void> _checkAllNo(WidgetTester tester) async {
 void main() {
   group('온보딩: 고른 길의 몬스터만', () {
     test('고르지 않은 길의 샘플 몬스터는 빠진다', () {
-      final s = GameState.sample(); // 늑대(운동) · 찌릿 쥐(공부) · 새싹냥(식습관)
+      final s = GameState.sample(gold: 1240, balls: 1); // 늑대(운동) · 찌릿 쥐(공부) · 새싹냥(식습관)
       final c = OnboardingController(onToast: (_) {});
       c.toggleCategory('ex');
       c.toggleCategory('sl');
@@ -42,7 +42,7 @@ void main() {
     });
 
     test('데려갈 몬스터가 없고 파트너도 안 골랐으면 첫 후보가 자동으로', () {
-      final s = GameState.sample();
+      final s = GameState.sample(gold: 1240, balls: 1);
       final c = OnboardingController(onToast: (_) {});
       c.toggleCategory('md');
       c.toggleCategory('sl');
@@ -54,7 +54,7 @@ void main() {
     });
 
     test('몬스터가 없는 길만 골라도 앱이 버틴다', () {
-      final s = GameState.sample();
+      final s = GameState.sample(gold: 1240, balls: 1);
       final c = OnboardingController(onToast: (_) {});
       c.toggleCategory('md');
       c.habits.add(Habit(id: 'h', name: '10분 명상', categoryId: 'md', measureIndex: 0, target: 10, periodIndex: 0));
@@ -67,7 +67,7 @@ void main() {
 
   testWidgets('몬스터가 하나도 없어도 챗봇이 시작된다', (tester) async {
     _view(tester);
-    final s = GameState.sample();
+    final s = GameState.sample(gold: 1240, balls: 1);
     s.monsters.clear();
     s.chatPartnerUid = null;
     await tester.pumpWidget(GameScope(notifier: s, child: const MaterialApp(home: MainShell())));
@@ -80,7 +80,7 @@ void main() {
 
   testWidgets('놓치면 "놓쳤다…" 팝업, 대화창에는 안 남는다', (tester) async {
     _view(tester);
-    final s = GameState.sample(random: FixedRandom(double_: 0.1, int_: 2));
+    final s = GameState.sample(gold: 1240, balls: 1, random: FixedRandom(double_: 0.1, int_: 2));
     await tester.pumpWidget(GameScope(notifier: s, child: const MaterialApp(home: MainShell())));
     await _checkAllNo(tester);
     final before = s.monsters.length;
@@ -104,7 +104,7 @@ void main() {
 
   testWidgets('다시 탐색하면 던지지 않고 다른 몬스터를 찾는다', (tester) async {
     _view(tester);
-    final s = GameState.sample(random: FixedRandom(double_: 0.9, int_: 2));
+    final s = GameState.sample(gold: 1240, balls: 1, random: FixedRandom(double_: 0.9, int_: 2));
     await tester.pumpWidget(GameScope(notifier: s, child: const MaterialApp(home: MainShell())));
     await _checkAllNo(tester);
     await tester.tap(find.text('탐색하기 (3회 남음)'));
@@ -119,7 +119,7 @@ void main() {
 
   testWidgets('볼이 없으면 "볼 사기" → 그 자리에서 사서 던진다', (tester) async {
     _view(tester);
-    final s = GameState.sample(random: FixedRandom(double_: 0.9, int_: 2))..balls = 0;
+    final s = GameState.sample(gold: 1240, balls: 1, random: FixedRandom(double_: 0.9, int_: 2))..balls = 0;
     await tester.pumpWidget(GameScope(notifier: s, child: const MaterialApp(home: MainShell())));
     await _checkAllNo(tester);
     await tester.tap(find.text('탐색하기 (3회 남음)'));

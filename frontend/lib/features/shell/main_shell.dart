@@ -218,11 +218,113 @@ class _TopBar extends StatelessWidget {
                   style: const TextStyle(fontSize: 10.5, color: AppColors.gold)),
               const Spacer(),
               CoinChip(text: _fmt(s.gold), big: true),
+              const SizedBox(width: 6),
+              const _GoldInfoButton(),
               const SizedBox(width: 8),
               BallChip(count: s.balls),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 골드 옆 + 버튼 → 골드 얻는 법 팝업.
+class _GoldInfoButton extends StatelessWidget {
+  const _GoldInfoButton();
+
+  void _open(BuildContext context) {
+    showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: '골드 얻는 법 닫기',
+      barrierColor: AppColors.black.withValues(alpha: 0),
+      pageBuilder: (ctx, _, __) => const _GoldGuidePopup(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: '골드 얻는 법',
+      excludeSemantics: true,
+      onTap: () => _open(context),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _open(context),
+        child: Container(
+          width: 26,
+          height: 26,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.green,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: AppColors.ink, width: 3),
+            boxShadow: const [BoxShadow(color: AppColors.fieldGreen, offset: Offset(0, 3))],
+          ),
+          child: const Text('+',
+              style: TextStyle(fontSize: 16, height: 1, fontWeight: FontWeight.w700, color: AppColors.brownText)),
+        ),
+      ),
+    );
+  }
+}
+
+class _GoldGuidePopup extends StatelessWidget {
+  const _GoldGuidePopup();
+
+  Widget _row(String title, String body) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.brownText)),
+            const SizedBox(height: 2),
+            Text(body, style: const TextStyle(fontSize: 11, height: 1.6, color: AppColors.brownMuted)),
+          ],
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      type: MaterialType.transparency,
+      child: GestureDetector(
+        onTap: () => Navigator.of(context).pop(),
+        child: PopupCard(
+          title: '골드 얻는 법',
+          ribbonColor: AppColors.purple,
+          ribbonText: AppColors.white,
+          maxWidth: 300,
+          children: [
+            GestureDetector(
+              onTap: () {},
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _row('습관 체크하기', '챗봇에서 습관을 체크하면 성실도가 쌓이고, 성실도 1점마다 ${Economy.goldPerSincerity}골드를 받아요.'),
+                  _row('성실도 레벨업', '카테고리 성실도 레벨이 오를 때마다 ${Economy.categoryLevelUpGold}골드를 받아요.'),
+                  _row('목표 달성',
+                      '주간 목표를 달성하면 ${Economy.weeklyGoalGold}골드, 월간 목표를 달성하면 ${Economy.monthlyGoalGold}골드를 받아요.'),
+                  _row('이미 있는 몬스터', '이미 도감에 있는 몬스터를 또 만나면 ${Economy.duplicateMonsterGold}골드를 받아요.'),
+                  const SizedBox(height: 4),
+                  PixelButton(
+                    label: '확인',
+                    onPressed: () => Navigator.of(context).pop(),
+                    color: AppColors.green,
+                    shadowColor: AppColors.fieldGreen,
+                    textColor: AppColors.brownText,
+                    height: 42,
+                    depth: 4,
+                    fontSize: 12,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

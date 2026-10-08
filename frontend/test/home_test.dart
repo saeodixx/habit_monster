@@ -8,7 +8,7 @@ import 'package:habit_monster/features/shell/main_shell.dart';
 void main() {
   group('GameState 교감 · 성실도', () {
     test('쓰다듬기는 ♥+2, 최대치를 넘지 않는다', () {
-      final s = GameState.sample();
+      final s = GameState.sample(gold: 1240, balls: 1);
       final spark = s.monsterByUid('m2')!; // 호감도 8
       expect(s.pet(spark), 2);
       expect(spark.affection, 10);
@@ -19,7 +19,7 @@ void main() {
     });
 
     test('놀아주기는 하루 1번만 ♥+1', () {
-      final s = GameState.sample();
+      final s = GameState.sample(gold: 1240, balls: 1);
       final wolf = s.monsterByUid('m1')!; // 호감도 4
       expect(s.play(wolf), 1);
       expect(s.play(wolf), 0);
@@ -27,7 +27,7 @@ void main() {
     });
 
     test('오늘의 성실도는 앞 3개 습관만, 75점 만점', () {
-      final s = GameState.sample();
+      final s = GameState.sample(gold: 1240, balls: 1);
       expect(s.todayScore, 0);
       s.confirmCheckin({'h1': 30, 'h3': 4}); // 러닝 30/30 → 20, 물 4/2 → 25 (최대)
       expect(s.todayScore, 45);
@@ -47,7 +47,7 @@ void main() {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final state = GameState.sample();
+    final state = GameState.sample(gold: 1240, balls: 1);
     await tester.pumpWidget(GameScope(notifier: state, child: const MaterialApp(home: MainShell())));
     await tester.pump();
 

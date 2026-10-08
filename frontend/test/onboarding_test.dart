@@ -95,7 +95,7 @@ void main() {
     });
 
     test('완료하면 첫 파트너가 필드에 들어온다', () {
-      final s = GameState.sample();
+      final s = GameState.sample(gold: 1240, balls: 1);
       c.toggleCategory('sl');
       c.pickStarter(0);
       c.confirmCategories();
@@ -117,7 +117,7 @@ void main() {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final state = GameState.sample();
+    final state = GameState.sample(gold: 1240, balls: 1);
     await tester.pumpWidget(GameScope(notifier: state, child: const MaterialApp(home: OnboardingFlow())));
 
     expect(find.text('STEP 1 / 3 · 모험의 길 고르기'), findsOneWidget);

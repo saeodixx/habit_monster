@@ -25,7 +25,7 @@ class FixedRandom implements Random {
 void main() {
   group('체크인 규칙 (하루 1번 일괄 확정)', () {
     test('점수 상위 3개만 골드 · 카테고리 포인트에 반영', () {
-      final s = GameState.sample();
+      final s = GameState.sample(gold: 1240, balls: 1);
       s.habits.add(Habit(id: 'h4', name: '스쿼트', categoryId: 'ex', measureIndex: 1, target: 30, periodIndex: 0));
       // 러닝 30/30 → 20, 공부 0 → 0, 물 3/2 → 25, 스쿼트 15/30 → 10 → 상위 3개: 물 25 · 러닝 20 · 스쿼트 10
       final r = s.confirmCheckin({'h1': 30, 'h2': 0, 'h3': 3, 'h4': 15})!;
@@ -39,7 +39,7 @@ void main() {
     });
 
     test('카테고리 레벨이 오르면 레벨당 +20G', () {
-      final s = GameState.sample();
+      final s = GameState.sample(gold: 1240, balls: 1);
       s.categoryPoints['ex'] = 95; // Lv.4, Lv.5까지 5 남음
       final r = s.confirmCheckin({'h1': 30, 'h2': 0, 'h3': 0})!;
       expect(r.levelUps, {'ex': 5});
@@ -47,7 +47,7 @@ void main() {
     });
 
     test('확정은 하루 1번, 이후엔 수정 불가', () {
-      final s = GameState.sample();
+      final s = GameState.sample(gold: 1240, balls: 1);
       s.confirmCheckin({'h1': 30, 'h2': 0, 'h3': 0});
       final gold = s.gold;
       expect(s.confirmCheckin({'h1': 60, 'h2': 60, 'h3': 2}), isNull);
@@ -56,7 +56,7 @@ void main() {
     });
 
     test('확정하면 탐색 3회 + 오늘 체크인한 카테고리가 탐색 풀', () {
-      final s = GameState.sample();
+      final s = GameState.sample(gold: 1240, balls: 1);
       expect(s.encountersLeft, 0);
       expect(s.explore(), isNull); // 체크인 전엔 탐색 불가
       s.confirmCheckin({'h1': 30}); // 운동만 체크인
@@ -76,7 +76,7 @@ void main() {
 
   group('탐색 · 잡기 규칙', () {
     test('탐색하면 몬스터가 나타나기만 한다 (아직 안 잡음)', () {
-      final s = _checkedIn(GameState.sample(random: FixedRandom(double_: 0.9, int_: 2))); // 풀: 늑대, 쥐, 병아리, 새싹냥
+      final s = _checkedIn(GameState.sample(gold: 1240, balls: 1, random: FixedRandom(double_: 0.9, int_: 2))); // 풀: 늑대, 쥐, 병아리, 새싹냥
       final e = s.explore()!;
       expect(e.species!.id, 'chick');
       expect(e.alreadyOwned, isFalse);
@@ -85,7 +85,7 @@ void main() {
     });
 
     test('만날 몬스터가 없는 길만 열었으면 아무도 없음', () {
-      final s = GameState.sample();
+      final s = GameState.sample(gold: 1240, balls: 1);
       s.habits.add(Habit(id: 'h9', name: '10분 명상', categoryId: 'md', measureIndex: 0, target: 10, periodIndex: 0));
       s.pickedCategories.add('md');
       s.confirmCheckin({'h9': 10}); // 명상만 체크인 → 명상 몬스터 없음
@@ -93,7 +93,7 @@ void main() {
     });
 
     test('던지면 볼 1개를 쓰고 잡으면 새 몬스터', () {
-      final s = _checkedIn(GameState.sample(random: FixedRandom(double_: 0.9, int_: 2)));
+      final s = _checkedIn(GameState.sample(gold: 1240, balls: 1, random: FixedRandom(double_: 0.9, int_: 2)));
       final e = s.explore()!;
       final r = s.throwBall(e.species!)!;
       expect(r.kind, CatchKind.newMonster);
@@ -104,7 +104,7 @@ void main() {
     });
 
     test('놓치면 볼만 쓰고 몬스터는 안 생긴다', () {
-      final s = _checkedIn(GameState.sample(random: FixedRandom(double_: 0.1, int_: 2)));
+      final s = _checkedIn(GameState.sample(gold: 1240, balls: 1, random: FixedRandom(double_: 0.1, int_: 2)));
       final r = s.throwBall(s.explore()!.species!)!;
       expect(r.kind, CatchKind.escaped);
       expect(r.caught, isFalse);
@@ -113,7 +113,7 @@ void main() {
     });
 
     test('이미 있는 몬스터를 잡으면 +15G', () {
-      final s = _checkedIn(GameState.sample(random: FixedRandom(double_: 0.9, int_: 0))); // 잿불 늑대
+      final s = _checkedIn(GameState.sample(gold: 1240, balls: 1, random: FixedRandom(double_: 0.9, int_: 0))); // 잿불 늑대
       final e = s.explore()!;
       expect(e.alreadyOwned, isTrue);
       final before = s.gold;
@@ -122,7 +122,7 @@ void main() {
     });
 
     test('볼이 없으면 못 던지고, 탐색 횟수가 없으면 탐색 못 함', () {
-      final s = _checkedIn(GameState.sample(random: FixedRandom(double_: 0.9)));
+      final s = _checkedIn(GameState.sample(gold: 1240, balls: 1, random: FixedRandom(double_: 0.9)));
       s.balls = 0;
       expect(s.throwBall(Catalog.speciesById('chick')), isNull);
       s.encountersLeft = 0;
@@ -134,7 +134,7 @@ void main() {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final s = GameState.sample(random: FixedRandom(double_: 0.9, int_: 2));
+    final s = GameState.sample(gold: 1240, balls: 1, random: FixedRandom(double_: 0.9, int_: 2));
     await tester.pumpWidget(GameScope(notifier: s, child: const MaterialApp(home: MainShell())));
     await tester.tap(find.text('챗봇'));
     await tester.pump();

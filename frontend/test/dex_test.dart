@@ -9,7 +9,7 @@ void main() {
     tester.view.physicalSize = const Size(390, 1400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final s = GameState.sample(); // 공부 38점 → Lv.3, 늑대·찌릿 쥐·새싹냥 보유
+    final s = GameState.sample(gold: 1240, balls: 1); // 공부 38점 → Lv.3, 늑대·찌릿 쥐·새싹냥 보유
     await tester.pumpWidget(GameScope(notifier: s, child: const MaterialApp(home: Scaffold(body: DexScreen()))));
 
     expect(find.text('발견 3/36'), findsOneWidget);

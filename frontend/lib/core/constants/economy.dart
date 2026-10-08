@@ -2,6 +2,10 @@
 class Economy {
   Economy._();
 
+  // 시작 자원
+  static const int startingGold = 50;
+  static const int startingBalls = 3;
+
   // 수입
   static const int goldPerSincerity = 1;
   static const int dailyHabitCap = 3; // 하루 성실도에 반영되는 습관 수 (점수 상위 3개)
