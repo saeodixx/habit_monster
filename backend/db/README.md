@@ -1,16 +1,17 @@
-# DB 변경안 v1.4 — 성실볼을 "던져서 잡는 볼"로
+# DB 변경안 v1.5 — 성실볼을 "던져서 잡는 볼"로
 
-원본 설계(`schema.sql` v1.3, `verify.sql`)는 그대로 두고, 그 위에 덮어 적용하는 파일입니다.
+원본 설계(`database/schema.sql` v1.4 — 습관 기간 7일/30일/100일, `seed.sql`, `verify.sql`)는 그대로 두고, 그 위에 덮어 적용하는 파일입니다.
+(원래 v1.4로 만들었는데, 원본 스키마의 기간 변경이 v1.4가 되어 v1.5로 이름을 바꿨어요.)
 
 ```
-psql -v ON_ERROR_STOP=1 -f schema.sql -f seed.sql -f v1.4_ball_catch.sql -f v1.4_verify.sql
+psql -v ON_ERROR_STOP=1 -f schema.sql -f seed.sql -f v1.5_ball_catch.sql -f v1.5_verify.sql
 ```
 
-PostgreSQL 18 임시 DB에서 `schema.sql` → (앱 카탈로그로 만든 임시 시드) → `v1.4_ball_catch.sql` → `v1.4_verify.sql` 순서로 돌려 **23개 검사 모두 통과**를 확인했습니다. `schema_later.sql`을 함께 적용해도 같습니다.
+PostgreSQL 18 임시 DB에서 `schema.sql`(v1.4) → `seed.sql` → `v1.5_ball_catch.sql` → `v1.5_verify.sql` 순서로 돌려 **23개 검사 모두 통과**를 확인했습니다 (2026-10-07). 원본 `schema.sql` → `seed.sql` → `verify.sql`도 92개 모두 통과. `schema_later.sql`을 함께 적용해도 같습니다.
 
 ## 무엇이 바뀌나 (한눈에)
 
-| | v1.3 (지금 설계) | v1.4 (앱과 같은 규칙) |
+| | v1.3 (지금 설계) | v1.5 (앱과 같은 규칙) |
 |---|---|---|
 | 성실볼 | 오늘 탐색 +1회 (하루 2개까지) | 나타난 몬스터에게 던지는 볼. 던질 때마다 1개, 하루 제한 없음 |
 | 탐색 1회 | 바로 결과: 꽝 / 새 몬스터 / 중복 | 몬스터가 **나타남** → 던지기 or 넘기기 |
@@ -49,12 +50,12 @@ PostgreSQL 18 임시 DB에서 `schema.sql` → (앱 카탈로그로 만든 임�
 - **던지기** `POST /explore/throw`: 가방 볼 −1 + `item_consumption`(consumer_key `BALL:<uuid>`) → 도망 확률(`explore_miss_rate`) 판정 → `NEW`면 개체·도감 추가(+해금권 기준 달성 시 지급) / `DUPLICATE`면 지갑 +15G (원장 `DUPLICATE`, ref_id = explore_log.id) → explore_log 결과 UPDATE. 모두 한 트랜잭션.
 - **넘기기**: `FOUND` → `SKIPPED` UPDATE (볼·골드 변화 없음).
 
-## `verify.sql`에서 고칠 곳 (v1.4 적용 후 실패하는 3개 + 의미가 없어지는 4개)
+## `verify.sql`에서 고칠 곳 (v1.5 적용 후 실패하는 3개 + 의미가 없어지는 4개)
 
 | 검사 | 처리 |
 |---|---|
 | S-1 스키마 간 FK 허용 목록 | `('monster.ball_use','shop.item_consumption')` → `('monster.explore_log','shop.item_consumption')` 로 교체 (개수는 15개 그대로) |
-| 성실볼 = 소모 1건 + 사용 기록 + 추가 횟수 | 삭제 → `v1.4_verify.sql` V-13 |
+| 성실볼 = 소모 1건 + 사용 기록 + 추가 횟수 | 삭제 → `v1.5_verify.sql` V-13 |
 | 성실볼 재시도: 같은 소모 키는 소모 단계에서 차단 | 위 검사가 만들던 `BALL:u1`이 없어져서 실패. V-13 다음에 같은 키 재삽입으로 옮기거나 삭제 (소모 키 UNIQUE는 "소모 키 재사용 차단" 검사가 이미 확인) |
 | 같은 소모 행으로 성실볼 두 번 반영 불가 · 소모 행 없이 성실볼 기록 불가 · 쿼터 없는 날 성실볼 사용 불가 | `ball_use`가 없어서 **잘못된 이유로 PASS** 됨 → 삭제 (V-15, V-16, V-31이 대신) |
 | 꽝인데 종 기록 불가 | `'MISS'` → `'NONE'`, `resolved_at` 값 추가 (V-25와 같음) |

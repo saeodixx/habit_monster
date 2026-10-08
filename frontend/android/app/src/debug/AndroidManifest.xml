@@ -4,4 +4,6 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- 개발용: PC에서 띄운 로컬 서버(http://10.0.2.2:8080 등)에 접속할 수 있게. 릴리스는 https만. -->
+    <application android:usesCleartextTraffic="true"/>
 </manifest>

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/auth/auth_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../shell/main_shell.dart';
 import 'login_screen.dart';
@@ -12,7 +13,9 @@ class AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final session = AuthScope.of(context).session;
+    final auth = AuthScope.of(context);
+    if (!auth.ready) return const Scaffold(backgroundColor: AppColors.introSky);
+    final session = auth.session;
     if (session == null) return const LoginScreen();
     return session.onboardingDone ? const MainShell() : const OnboardingScreen();
   }

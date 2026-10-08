@@ -117,4 +117,4 @@
 
 ## DB 변경안
 
-성실볼을 "던져서 잡는 볼"로 바꾼 v1.4 변경안과 검증 스크립트: [`db/README.md`](db/README.md)
+성실볼을 "던져서 잡는 볼"로 바꾼 v1.5 변경안과 검증 스크립트: [`db/README.md`](db/README.md)

@@ -46,7 +46,7 @@ class PixelIcons {
     ],
   };
 
-  /// 기간 보상 상자 색 (뚜껑, 몸통, 띠). 1주일 · 1개월 · 3개월. 시안의 `CHESTS`.
+  /// 기간 보상 상자 색 (뚜껑, 몸통, 띠). 7일 · 30일 · 100일. 시안의 `CHESTS`.
   static const List<(Color, Color, Color)> chestColors = [
     (Color(0xFFA8673A), Color(0xFFC98A4B), Color(0xFF8A5226)),
     (Color(0xFF8F8BA8), Color(0xFFC9C6D8), Color(0xFF6B6890)),

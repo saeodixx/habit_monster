@@ -151,7 +151,7 @@ class Habit {
   String categoryId;
   int measureIndex;
   double target;
-  int periodIndex; // 0: 1주일 ×1.2, 1: 1개월 ×1.5, 2: 3개월 ×2.0
+  int periodIndex; // 0: 7일 ×1.2, 1: 30일 ×1.5, 2: 100일 ×2.0 (DB period_code D7/D30/D100)
 }
 
 enum GoalTier { weekly, monthly }

@@ -109,7 +109,8 @@ class Catalog {
       ShopItem(id: 'ball', name: '성실볼', short: '성실볼', price: 50, exp: 0, asset: AppAssets.seongsilBall);
 
   /// 습관 기간과 끝까지 지켰을 때의 보상 배수.
-  static const List<(String, double)> periods = [('1주일', 1.2), ('1개월', 1.5), ('3개월', 2.0)];
+  // DB v1.4: 7일/30일/100일 (period_code D7/D30/D100, 배수는 config.period_multiplier)
+  static const List<(String, double)> periods = [('7일', 1.2), ('30일', 1.5), ('100일', 2.0)];
 
   /// 기간 배수 표시 (예: ×1.2).
   static String periodMult(int i) => '×${periods[i].$2.toStringAsFixed(1)}';

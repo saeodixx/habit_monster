@@ -1,7 +1,7 @@
 -- =====================================================================
--- v1.4 검증: 성실볼 = 던져서 잡는 볼
--- 실행: psql -v ON_ERROR_STOP=1 -f schema.sql -f seed.sql -f v1.4_ball_catch.sql -f v1.4_verify.sql
--- (verify.sql의 ball_use · ball_bonus · 'MISS' 관련 검사는 v1.4에서 아래 검사로 대체)
+-- v1.5 검증: 성실볼 = 던져서 잡는 볼
+-- 실행: psql -v ON_ERROR_STOP=1 -f schema.sql -f seed.sql -f v1.5_ball_catch.sql -f v1.5_verify.sql
+-- (verify.sql의 ball_use · ball_bonus · 'MISS' 관련 검사는 v1.5에서 아래 검사로 대체)
 -- =====================================================================
 CREATE TEMP TABLE _r (id text, ok boolean, note text);
 CREATE OR REPLACE FUNCTION pg_temp.fail(_id text, _sql text) RETURNS void AS $$
@@ -115,4 +115,4 @@ INSERT INTO _r SELECT 'V-40 볼 소모는 던진 횟수만큼 (성공한 던지�
   FROM monster.explore_log WHERE ball_consumption_id IS NOT NULL;
 
 SELECT CASE WHEN ok THEN 'PASS' ELSE 'FAIL' END AS r, id, note FROM _r ORDER BY ok, id;
-DO $$ BEGIN IF EXISTS (SELECT 1 FROM _r WHERE NOT ok) THEN RAISE EXCEPTION 'v1.4 검증 실패'; END IF; END $$;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM _r WHERE NOT ok) THEN RAISE EXCEPTION 'v1.5 검증 실패'; END IF; END $$;

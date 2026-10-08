@@ -31,7 +31,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
-@SpringBootTest
+// 소셜 키는 비워서 "설정 전" 상태로 검사 (실제 카카오 · 구글에 접속하지 않게)
+@SpringBootTest(properties = { "app.auth.google.client-ids=", "app.auth.kakao.app-id=" })
 @AutoConfigureMockMvc
 @ActiveProfiles("local")
 class AuthApiTest {
