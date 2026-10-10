@@ -53,7 +53,8 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   void _enterHome() {
     _c.commit(GameScope.read(context));
     AuthScope.maybeRead(context)?.completeOnboarding(); // 다음 로그인부터는 바로 홈
-    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const MainShell()));
+    // 처음 들어가는 홈이니 튜토리얼부터
+    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const MainShell(showTutorial: true)));
   }
 
   @override

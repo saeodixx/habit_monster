@@ -114,6 +114,19 @@ class PixelIcons {
     PixelLayer('M7 7h2v2H7z', Color(0xFFFFD479)),
   ];
 
+  /// 필드 오른쪽 위 출석부(달력) 아이콘.
+  static const List<PixelLayer> fieldCalendar = [
+    PixelLayer('M2 3h12v12H2z', Color(0xFFFFFAF0)),
+    PixelLayer('M2 3h12v4H2z', Color(0xFFE2574C)),
+    PixelLayer('M2 14h12v1H2z', Color(0xFFC9B89A)),
+    PixelLayer('M4 1h2v4H4z M10 1h2v4h-2z', Color(0xFF5C3415)),
+    PixelLayer('M4 8h2v2H4z M7 8h2v2H7z M4 11h2v2H4z', Color(0xFFC9B89A)),
+    PixelLayer('M10 8h2v2h-2z M7 11h2v2H7z M10 11h2v2h-2z', Color(0xFFF0B23C)),
+  ];
+
+  /// 골드 칩 안의 + (골드 얻는 법).
+  static const String plus = 'M6 2h4v4h4v4h-4v4H6v-4H2V6h4z';
+
   /// 가방 창 머리 아이콘.
   static const List<PixelLayer> bagHeader = [
     PixelLayer('M6 1h4v1h1v2h-1V2H6v2H5V2h1z', Color(0xFF5C3415)),

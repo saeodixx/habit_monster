@@ -9,6 +9,7 @@ import '../../core/utils/format.dart';
 import '../../data/catalog.dart';
 import '../../data/models.dart';
 import '../../core/widgets/category_icon.dart';
+import '../../core/widgets/help_button.dart';
 import 'home_parts.dart';
 
 /// 홈 아래 슬라이드 시트. 접히면 오늘의 성실도 요약, 펼치면 [습관 리스트 | 오늘의 성실도] 두 쪽.
@@ -144,6 +145,28 @@ class _HabitSheetState extends State<HabitSheet> {
   }
 }
 
+/// "오늘의 성실도" 옆 ? 버튼: 성실도가 무엇이고 어디에 쓰이는지.
+class SincerityHelp extends StatelessWidget {
+  const SincerityHelp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const HelpButton(title: '성실도란?', items: [
+      ('성실도가 뭐예요?', '오늘 습관을 얼마나 지켰는지 보여주는 점수예요. 챗봇에서 오늘 습관을 체크하면 쌓여요.'),
+      (
+        '어떻게 정해져요?',
+        '목표에 가까울수록 점수가 높고, 습관 하나에 최대 ${Economy.maxSincerityPerHabit}점이에요. '
+            '점수가 높은 습관 ${Economy.dailyHabitCap}개만 더해서 하루에 최대 ${GameState.maxDailyScore}점까지 받아요.'
+      ),
+      (
+        '어디에 쓰여요?',
+        '성실도 1점마다 ${Economy.goldPerSincerity}골드를 받아요. 카테고리 레벨도 함께 올라서, '
+            '레벨이 오르면 ${Economy.categoryLevelUpGold}골드를 받고 탐색에서 새로운 몬스터를 만날 수 있어요.'
+      ),
+    ]);
+  }
+}
+
 class _ProgressBar extends StatelessWidget {
   const _ProgressBar({required this.pct, required this.color, this.height = 10, this.border = 2, this.bg = AppColors.nightRaised});
   final double pct;
@@ -181,11 +204,19 @@ class _Summary extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
-                  child: Text('오늘의 성실도 · 습관 ${s.checkedCount}/$countable 체크',
-                      style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text('오늘의 성실도 · 습관 ${s.checkedCount}/$countable 체크',
+                            style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                      ),
+                      const SizedBox(width: 2),
+                      const SincerityHelp(),
+                    ],
+                  ),
                 ),
                 Text.rich(
                   TextSpan(children: [
@@ -319,8 +350,14 @@ class _ScorePage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('오늘의 성실도', style: TextStyle(fontSize: 10.5, color: AppColors.textMuted)),
-              const SizedBox(height: 6),
+              const Row(
+                children: [
+                  Text('오늘의 성실도', style: TextStyle(fontSize: 10.5, color: AppColors.textMuted)),
+                  SizedBox(width: 2),
+                  SincerityHelp(),
+                ],
+              ),
+              const SizedBox(height: 2),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [

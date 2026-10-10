@@ -7,9 +7,11 @@ import '../../core/auth/auth_service.dart';
 import '../../core/constants/economy.dart';
 import '../../core/state/game_state.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/help_button.dart';
 import '../../core/widgets/pixel_icon.dart';
 import '../../core/widgets/pixel_widgets.dart';
 import '../../core/widgets/popup_card.dart';
+import '../../data/catalog.dart';
 import '../../data/pixel_icons.dart';
 import '../auth/auth_gate.dart';
 import '../chat/chat_screen.dart';
@@ -17,17 +19,22 @@ import '../dex/dex_screen.dart';
 import '../goals/goals_screen.dart';
 import '../home/home_screen.dart';
 import '../stats/stats_screen.dart';
+import '../tutorial/tutorial_overlay.dart';
 
 /// 상단 바(날짜 · 탐색 · 골드 · 성실볼) + 본문 + 하단 탭 5개.
 ///
 /// 하위 화면에서 `MainShell.of(context)`로 탭 이동([MainShellState.goTab])과
 /// 토스트([MainShellState.toast])를 쓸 수 있다.
 class MainShell extends StatefulWidget {
-  const MainShell({super.key});
+  const MainShell({super.key, this.showTutorial = false});
+
+  /// 온보딩을 막 끝내고 처음 들어왔으면 튜토리얼부터 보여준다.
+  final bool showTutorial;
 
   static const int homeTab = 0;
   static const int chatTab = 1;
   static const int dexTab = 3;
+  static const int goalsTab = 4;
 
   static MainShellState of(BuildContext context) => context.findAncestorStateOfType<MainShellState>()!;
 
@@ -72,6 +79,69 @@ class MainShellState extends State<MainShell> {
     BgmScope.read(context).play(_musicOverrides[_tab] ?? base);
   }
 
+  // ---------- 튜토리얼 ----------
+  late bool _tutorial = widget.showTutorial;
+  final _walletKey = GlobalKey();
+  final _monsterKeys = [for (var i = 0; i < Economy.fieldCapacity; i++) GlobalKey()];
+  final _iconsKey = GlobalKey();
+  final _sheetKey = GlobalKey();
+  final _tabKeys = [for (var i = 0; i < _tabs.length; i++) GlobalKey()];
+
+  /// 홈으로 돌아가 튜토리얼을 처음부터 보여준다 (설정의 "다시 보기").
+  void startTutorial() {
+    goTab(MainShell.homeTab);
+    setState(() => _tutorial = true);
+  }
+
+  List<TutorialStep> get _tutorialSteps => [
+        const TutorialStep(
+          title: '루틴몬에 온 걸 환영해요!',
+          body: '습관을 지키면 몬스터와 함께 자라는 곳이에요. 화면을 하나씩 알려 드릴게요.',
+        ),
+        TutorialStep(
+          targets: _monsterKeys,
+          title: '나의 필드',
+          body: '함께하는 몬스터가 여기서 지내요. 몬스터를 누르면 쓰다듬고, 간식을 주고, 같이 놀 수 있어요.',
+        ),
+        TutorialStep(
+          targets: [_sheetKey],
+          title: '오늘의 성실도',
+          body: '오늘 습관을 얼마나 지켰는지 보여줘요. 위로 밀면 내 습관 리스트가 나와요.',
+        ),
+        TutorialStep(
+          targets: [_tabKeys[MainShell.chatTab]],
+          title: '챗봇에서 습관 체크',
+          body: '하루에 한 번, 챗봇에게 오늘 습관을 알려 주세요. 성실도만큼 골드를 받고 '
+              '탐색을 ${Economy.encountersPerDay}번 할 수 있어요. 탐색에서 새 몬스터를 만나요.',
+        ),
+        TutorialStep(
+          targets: [_walletKey],
+          title: '골드와 성실볼',
+          body: '골드로 상점에서 물약과 성실볼을 사요. 성실볼은 탐색에서 만난 몬스터를 잡을 때 써요. '
+              '골드 옆 + 를 누르면 골드 얻는 법이 나와요.',
+        ),
+        TutorialStep(
+          targets: [_iconsKey],
+          title: '상점 · 가방 · 출석',
+          body: '상점에서 물건을 사고, 가방에서 꺼내 써요. 출석부에서는 며칠째 연속으로 출석했는지 볼 수 있어요.',
+        ),
+        TutorialStep(
+          targets: [_tabKeys[MainShell.dexTab], _tabKeys[MainShell.goalsTab]],
+          title: '도감과 목표',
+          body: '도감에는 만난 몬스터가 기록돼요. 목표 탭에서 주간 · 월간 목표를 달성하면 골드를 받아요.',
+        ),
+        const TutorialStep(
+          title: '이제 시작해 볼까요?',
+          body: '낯선 말이 나오면 옆의 ? 를 눌러 보세요. 이 안내는 설정(톱니바퀴)에서 언제든 다시 볼 수 있어요.',
+        ),
+      ];
+
+  /// 튜토리얼 카드에 세울 안내 캐릭터: 대화 상대 몬스터 (없으면 필드 첫 몬스터).
+  Widget? _tutorialGuide(GameState s) {
+    final m = s.monsterByUid(s.chatPartnerUid) ?? s.fieldMonsters.firstOrNull;
+    return m == null ? null : PixelImage(Catalog.speciesById(m.speciesId).asset, height: 44);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -98,12 +168,28 @@ class MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        _scaffold(context),
+        if (_tutorial)
+          Positioned.fill(
+            child: TutorialOverlay(
+              steps: _tutorialSteps,
+              guide: _tutorialGuide(GameScope.of(context)),
+              onDone: () => setState(() => _tutorial = false),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _scaffold(BuildContext context) {
     return Scaffold(
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            const _TopBar(),
+            _TopBar(walletKey: _walletKey),
             Expanded(
               child: Stack(
                 children: [
@@ -111,7 +197,13 @@ class MainShellState extends State<MainShell> {
                     child: IndexedStack(
                       index: _tab,
                       children: [
-                        HomeScreen(active: _tab == MainShell.homeTab),
+                        HomeScreen(
+                          active: _tab == MainShell.homeTab,
+                          tutorial: _tutorial,
+                          monsterKeys: _monsterKeys,
+                          iconsKey: _iconsKey,
+                          sheetKey: _sheetKey,
+                        ),
                         ChatScreen(active: _tab == MainShell.chatTab),
                         const StatsScreen(),
                         DexScreen(active: _tab == MainShell.dexTab),
@@ -147,6 +239,7 @@ class MainShellState extends State<MainShell> {
                     behavior: HitTestBehavior.opaque,
                     onTap: () => goTab(i),
                     child: Container(
+                      key: _tabKeys[i],
                       height: 62,
                       decoration: BoxDecoration(
                         border: Border(
@@ -177,7 +270,10 @@ class MainShellState extends State<MainShell> {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar();
+  const _TopBar({this.walletKey});
+
+  /// 골드 · 성실볼 묶음 (튜토리얼이 가리킨다).
+  final GlobalKey? walletKey;
 
   static const _weekdays = ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'];
 
@@ -204,9 +300,15 @@ class _TopBar extends StatelessWidget {
                   ])),
               const SizedBox(width: 8),
               Text(_weekdays[now.weekday - 1], style: const TextStyle(fontSize: 13, color: AppColors.purpleSoft)),
-              const Spacer(),
-              Text('DAY ${s.dayCount} · 연속 ${s.currentStreak}일',
-                  style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
+              const SizedBox(width: 8),
+              // 날짜가 길어지는 날(두 자리 월 · 일)에도 넘치지 않게 남는 폭만 쓴다
+              Expanded(
+                child: Text('DAY ${s.dayCount} · 연속 ${s.currentStreak}일',
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
+              ),
               const SizedBox(width: 6),
               const _SettingsButton(),
             ],
@@ -214,117 +316,55 @@ class _TopBar extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             children: [
-              Text(s.checkedInToday ? '탐색 ${s.encountersLeft}회 남음' : '체크인하면 탐색 ${Economy.encountersPerDay}회',
-                  style: const TextStyle(fontSize: 10.5, color: AppColors.gold)),
-              const Spacer(),
-              CoinChip(text: _fmt(s.gold), big: true),
+              // 좁은 화면에서는 탐색 글자가 줄어들고, 골드 · 성실볼은 그대로 둔다
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                          s.checkedInToday ? '탐색 ${s.encountersLeft}회 남음' : '체크인하면 탐색 ${Economy.encountersPerDay}회',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 10.5, color: AppColors.gold)),
+                    ),
+                    const SizedBox(width: 2),
+                    const HelpButton(title: '탐색이란?', items: [
+                      (
+                        '탐색이 뭐예요?',
+                        '챗봇에서 오늘 습관을 체크하면 그날 탐색을 ${Economy.encountersPerDay}번 할 수 있어요. 탐색하면 몬스터를 만나요.'
+                      ),
+                      ('몬스터 잡기', '만난 몬스터에게 성실볼을 던지면 잡을 수 있어요. 가끔은 도망가기도 해요. 성실볼은 상점에서 살 수 있어요.'),
+                      ('어떤 몬스터가 나와요?', '오늘 체크한 습관의 카테고리에 사는 몬스터가 나와요. 카테고리 레벨이 오르면 새로운 몬스터가 나타나요.'),
+                    ]),
+                  ],
+                ),
+              ),
               const SizedBox(width: 6),
-              const _GoldInfoButton(),
-              const SizedBox(width: 8),
-              BallChip(count: s.balls),
+              Row(
+                key: walletKey,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CoinChip(
+                    text: _fmt(s.gold),
+                    big: true,
+                    addLabel: '골드 얻는 법',
+                    onAdd: () => showInfoPopup(context, title: '골드 얻는 법', items: const [
+                      ('습관 체크하기', '챗봇에서 습관을 체크하면 성실도가 쌓이고, 성실도 1점마다 ${Economy.goldPerSincerity}골드를 받아요.'),
+                      ('성실도 레벨업', '카테고리 성실도 레벨이 오를 때마다 ${Economy.categoryLevelUpGold}골드를 받아요.'),
+                      (
+                        '목표 달성',
+                        '주간 목표를 달성하면 ${Economy.weeklyGoalGold}골드, 월간 목표를 달성하면 ${Economy.monthlyGoalGold}골드를 받아요.'
+                      ),
+                      ('이미 있는 몬스터', '이미 도감에 있는 몬스터를 또 만나면 ${Economy.duplicateMonsterGold}골드를 받아요.'),
+                    ]),
+                  ),
+                  const SizedBox(width: 8),
+                  BallChip(count: s.balls),
+                ],
+              ),
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// 골드 옆 + 버튼 → 골드 얻는 법 팝업.
-class _GoldInfoButton extends StatelessWidget {
-  const _GoldInfoButton();
-
-  void _open(BuildContext context) {
-    showGeneralDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: '골드 얻는 법 닫기',
-      barrierColor: AppColors.black.withValues(alpha: 0),
-      pageBuilder: (ctx, _, __) => const _GoldGuidePopup(),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: '골드 얻는 법',
-      excludeSemantics: true,
-      onTap: () => _open(context),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => _open(context),
-        child: Container(
-          width: 26,
-          height: 26,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: AppColors.green,
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: AppColors.ink, width: 3),
-            boxShadow: const [BoxShadow(color: AppColors.fieldGreen, offset: Offset(0, 3))],
-          ),
-          child: const Text('+',
-              style: TextStyle(fontSize: 16, height: 1, fontWeight: FontWeight.w700, color: AppColors.brownText)),
-        ),
-      ),
-    );
-  }
-}
-
-class _GoldGuidePopup extends StatelessWidget {
-  const _GoldGuidePopup();
-
-  Widget _row(String title, String body) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.brownText)),
-            const SizedBox(height: 2),
-            Text(body, style: const TextStyle(fontSize: 11, height: 1.6, color: AppColors.brownMuted)),
-          ],
-        ),
-      );
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      type: MaterialType.transparency,
-      child: GestureDetector(
-        onTap: () => Navigator.of(context).pop(),
-        child: PopupCard(
-          title: '골드 얻는 법',
-          ribbonColor: AppColors.purple,
-          ribbonText: AppColors.white,
-          maxWidth: 300,
-          children: [
-            GestureDetector(
-              onTap: () {},
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _row('습관 체크하기', '챗봇에서 습관을 체크하면 성실도가 쌓이고, 성실도 1점마다 ${Economy.goldPerSincerity}골드를 받아요.'),
-                  _row('성실도 레벨업', '카테고리 성실도 레벨이 오를 때마다 ${Economy.categoryLevelUpGold}골드를 받아요.'),
-                  _row('목표 달성',
-                      '주간 목표를 달성하면 ${Economy.weeklyGoalGold}골드, 월간 목표를 달성하면 ${Economy.monthlyGoalGold}골드를 받아요.'),
-                  _row('이미 있는 몬스터', '이미 도감에 있는 몬스터를 또 만나면 ${Economy.duplicateMonsterGold}골드를 받아요.'),
-                  const SizedBox(height: 4),
-                  PixelButton(
-                    label: '확인',
-                    onPressed: () => Navigator.of(context).pop(),
-                    color: AppColors.green,
-                    shadowColor: AppColors.fieldGreen,
-                    textColor: AppColors.brownText,
-                    height: 42,
-                    depth: 4,
-                    fontSize: 12,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -420,6 +460,33 @@ class _SettingsPopup extends StatelessWidget {
                           onPressed: () => bgm.setEnabled(!bgm.enabled),
                           color: bgm.enabled ? AppColors.green : AppColors.parchment,
                           shadowColor: bgm.enabled ? AppColors.fieldGreen : AppColors.parchmentShadow,
+                          textColor: AppColors.brownText,
+                          height: 36,
+                          depth: 3,
+                          fontSize: 12,
+                          padding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text('튜토리얼',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.brownText)),
+                      ),
+                      SizedBox(
+                        width: 84,
+                        child: PixelButton(
+                          label: '다시 보기',
+                          semanticLabel: '튜토리얼 다시 보기',
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            MainShell.of(shellContext).startTutorial();
+                          },
+                          color: AppColors.parchment,
+                          shadowColor: AppColors.parchmentShadow,
                           textColor: AppColors.brownText,
                           height: 36,
                           depth: 3,

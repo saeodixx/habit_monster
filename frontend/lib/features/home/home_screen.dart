@@ -8,12 +8,14 @@ import '../../core/constants/app_assets.dart';
 import '../../core/constants/economy.dart';
 import '../../core/state/game_state.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/help_button.dart';
 import '../../core/widgets/pixel_icon.dart';
 import '../../core/widgets/pixel_widgets.dart';
 import '../../data/catalog.dart';
 import '../../data/models.dart';
 import '../../data/pixel_icons.dart';
 import '../shell/main_shell.dart';
+import 'attendance_popup.dart';
 import 'bag_overlay.dart';
 import 'habit_sheet.dart';
 import 'home_parts.dart';
@@ -34,10 +36,25 @@ class _FieldPos {
 /// 홈: 초원 위를 몬스터들이 돌아다니고, 가끔 호감도에 맞는 말을 한다.
 /// 오른쪽 위 상점·가방, 아래 슬라이드 시트, 몬스터를 누르면 교감 창.
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, this.active = true});
+  const HomeScreen({
+    super.key,
+    this.active = true,
+    this.tutorial = false,
+    this.monsterKeys,
+    this.iconsKey,
+    this.sheetKey,
+  });
 
   /// 홈 탭이 보이는 중인지 (아니면 돌아다니기/말풍선을 멈춘다).
   final bool active;
+
+  /// 튜토리얼이 떠 있는지 (몬스터를 멈추고 열려 있던 창을 닫는다).
+  final bool tutorial;
+
+  /// 튜토리얼이 가리킬 곳: 필드 몬스터들(필드 순서대로) · 오른쪽 위 아이콘들 · 아래 시트.
+  final List<GlobalKey>? monsterKeys;
+  final GlobalKey? iconsKey;
+  final GlobalKey? sheetKey;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -79,7 +96,18 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _openingChatter());
   }
 
-  bool get _idle => widget.active && _overlay == HomeOverlayKind.none;
+  bool get _idle => widget.active && !widget.tutorial && _overlay == HomeOverlayKind.none;
+
+  @override
+  void didUpdateWidget(HomeScreen old) {
+    super.didUpdateWidget(old);
+    if (widget.tutorial && !old.tutorial) {
+      _overlay = HomeOverlayKind.none;
+      _qtyItem = null;
+      _purchase = null;
+      _talk = {};
+    }
+  }
 
   String _randomLine(OwnedMonster m) {
     final lines = Catalog.speciesById(m.speciesId).lines[tierOf(m.affection)]!;
@@ -115,7 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// 처음 들어왔을 때 두 마리가 인사한다.
   void _openingChatter() {
-    if (!mounted) return;
+    if (!mounted || widget.tutorial) return;
     final f = GameScope.read(context).fieldMonsters;
     if (f.length < 2) return;
     _showTalk({f[1].uid: _randomLine(f[1]), f.last.uid: _randomLine(f.last)}, const Duration(milliseconds: 3600));
@@ -247,13 +275,24 @@ class _HomeScreenState extends State<HomeScreen> {
               left: 12,
               top: 12,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                padding: const EdgeInsets.fromLTRB(7, 0, 3, 0),
                 decoration: BoxDecoration(
                   color: AppColors.nightDeep.withValues(alpha: 0.8),
                   border: Border.all(color: AppColors.nightLine2, width: 2),
                 ),
-                child: Text('나의 필드 ${mons.length}/${Economy.fieldCapacity}',
-                    style: const TextStyle(fontSize: 10, color: AppColors.purpleSoft)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('나의 필드 ${mons.length}/${Economy.fieldCapacity}',
+                        style: const TextStyle(fontSize: 10, color: AppColors.purpleSoft)),
+                    const SizedBox(width: 2),
+                    const HelpButton(title: '나의 필드', items: [
+                      ('필드가 뭐예요?', '함께 지내는 몬스터가 돌아다니는 곳이에요. 최대 ${Economy.fieldCapacity}마리까지 꺼내 둘 수 있어요.'),
+                      ('몬스터와 놀기', '몬스터를 누르면 쓰다듬기 · 간식 주기 · 놀아주기 · 말 걸기를 할 수 있어요. 친해질수록 호감도(♥)가 올라요.'),
+                      ('넣고 꺼내기', '가방을 열면 몬스터를 필드로 꺼내거나 가방에 넣을 수 있어요.'),
+                    ]),
+                  ],
+                ),
               ),
             ),
             for (final i in order) _monster(mons[i], i, box, bobUp),
@@ -261,6 +300,7 @@ class _HomeScreenState extends State<HomeScreen> {
               right: 8,
               top: 8,
               child: Column(
+                key: widget.iconsKey,
                 children: [
                   _IconSpot(
                     label: '상점',
@@ -280,6 +320,19 @@ class _HomeScreenState extends State<HomeScreen> {
                     bob: bobUp ? 0 : -4,
                     onTap: () => setState(() => _overlay = HomeOverlayKind.bag),
                   ),
+                  const SizedBox(height: 6),
+                  _IconSpot(
+                    label: '출석',
+                    semantic: '출석부',
+                    icon: PixelIcons.fieldCalendar,
+                    labelColor: AppColors.text,
+                    bob: bobUp ? -4 : 0,
+                    badge: !s.checkedInToday, // 오늘 아직 출석 전
+                    onTap: () => showAttendancePopup(
+                      context,
+                      onGoChat: () => MainShell.of(context).goTab(MainShell.chatTab),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -288,6 +341,7 @@ class _HomeScreenState extends State<HomeScreen> {
               right: 0,
               bottom: 0,
               child: HabitSheet(
+                key: widget.sheetKey,
                 maxHeight: box.maxHeight,
                 onGoChat: () => MainShell.of(context).goTab(MainShell.chatTab),
               ),
@@ -362,6 +416,7 @@ class _HomeScreenState extends State<HomeScreen> {
         alignment: Alignment.topCenter,
         children: [
           Column(
+            key: widget.monsterKeys?.elementAtOrNull(i),
             children: [
               Semantics(
                 button: true,

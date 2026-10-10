@@ -165,6 +165,14 @@ class GameState extends ChangeNotifier {
   /// 상단 바의 연속 출석 (오늘 체크인을 확정하면 +1).
   int get currentStreak => streakDays + (checkedInToday ? 1 : 0);
 
+  /// [day]에 출석(습관 체크인)했는지. 아직 날짜별 기록이 없어서 지금 이어지는 연속 출석 구간만 안다.
+  bool attendedOn(DateTime day, {DateTime? today}) {
+    final t = today ?? DateTime.now();
+    final ago = DateTime.utc(t.year, t.month, t.day).difference(DateTime.utc(day.year, day.month, day.day)).inDays;
+    if (ago < 0) return false;
+    return ago == 0 ? checkedInToday : ago <= streakDays;
+  }
+
   /// 이 습관이 오늘 반영됐는지 (확정 후에만 의미 있음).
   bool isCounted(Habit h) => countedToday.contains(h.id);
 

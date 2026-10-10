@@ -20,6 +20,8 @@
 - `features/` onboarding(인트로 + 1~3단계) · shell(상단 바 + 탭 5개 + `MainShell.of(context)`로 탭 이동/토스트)
   · home(필드 · 말풍선 · 슬라이드 시트 · 상점/가방/교감 창) · dex(도감) · goals(목표)
   · chat(대본형 습관 체크 + 탐색, 대사는 `ChatBrain`) · 통계는 준비 중
+  · tutorial(온보딩 직후 홈을 짚어 주는 `TutorialOverlay`, 설정에서 다시 보기) · home의 출석부(`attendance_popup.dart`)
+- `core/widgets/help_button.dart` 낯선 말 옆 ? 버튼 `HelpButton` + 설명 창 `showInfoPopup` (시안에 없는 추가 기능)
 - 서버·AI 연동 지점: `backend/README.md`의 "프론트 연동 지점" · "AI 챗봇 연결"
 
 ## 구현 순서

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../data/pixel_icons.dart';
 import '../constants/app_assets.dart';
 import '../theme/app_colors.dart';
+import 'pixel_icon.dart';
 
 /// 픽셀 그림이 흐려지지 않게 그리는 이미지.
 class PixelImage extends StatelessWidget {
@@ -169,15 +171,23 @@ class _PixelButtonState extends State<PixelButton> {
 
 /// 금화 아이콘 + 숫자 (상단 바, 목표 보상 등).
 class CoinChip extends StatelessWidget {
-  const CoinChip({super.key, required this.text, this.big = false});
+  const CoinChip({super.key, required this.text, this.big = false, this.onAdd, this.addLabel});
   final String text;
   final bool big;
+
+  /// 있으면 칩 안 오른쪽 끝에 + 버튼이 붙고, 칩 전체를 누를 수 있다 (골드 얻는 법).
+  final VoidCallback? onAdd;
+
+  /// + 버튼을 읽어줄 이름.
+  final String? addLabel;
 
   @override
   Widget build(BuildContext context) {
     final size = big ? 18.0 : 12.0;
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: big ? 10 : 6, vertical: big ? 4 : 2),
+    final hPad = big ? 10.0 : 6.0;
+    final vPad = big ? 4.0 : 2.0;
+    final chip = Container(
+      padding: EdgeInsets.fromLTRB(hPad, vPad, onAdd == null ? hPad : vPad, vPad),
       decoration: BoxDecoration(
         color: AppColors.cream,
         borderRadius: BorderRadius.circular(999),
@@ -190,8 +200,30 @@ class CoinChip extends StatelessWidget {
           CustomPaint(size: Size(size, size), painter: _CoinPainter()),
           const SizedBox(width: 6),
           Text(text, style: TextStyle(fontSize: big ? 14 : 11, fontWeight: FontWeight.w700, color: AppColors.goldDeep)),
+          if (onAdd != null) ...[
+            const SizedBox(width: 7),
+            Container(
+              width: size + 2,
+              height: size + 2,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.green,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.ink, width: 2),
+              ),
+              child: PixelIcon(layers: const [PixelLayer(PixelIcons.plus, AppColors.brownText)], size: size - 8),
+            ),
+          ],
         ],
       ),
+    );
+    if (onAdd == null) return chip;
+    return Semantics(
+      button: true,
+      label: addLabel,
+      excludeSemantics: true,
+      onTap: onAdd,
+      child: GestureDetector(behavior: HitTestBehavior.opaque, onTap: onAdd, child: chip),
     );
   }
 }
