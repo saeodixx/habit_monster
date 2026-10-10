@@ -321,8 +321,13 @@ class _ChatScreenState extends State<ChatScreen> {
         final noEnc = s.encountersLeft <= 0;
         content = Row(
           children: [
-
+            // 확정한 기록 고치기 (보상은 첫 확정 그대로)
+            if (s.checkedInToday) ...[
+              Expanded(flex: 2, child: _DarkButton(label: '다시 체크', onTap: c.recheck)),
+              const SizedBox(width: 9),
+            ],
             Expanded(
+              flex: 3,
               child: Semantics(
                 button: true,
                 enabled: !noEnc,
